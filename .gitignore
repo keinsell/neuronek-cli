@@ -1,2 +1,4 @@
 /target
 target
+dev.db
+.env

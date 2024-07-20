@@ -1,13 +1,62 @@
 use async_std::task;
 use miette::set_panic_hook;
 
+mod db {
+    use platform_dirs::AppDirs;
+    use sea_migrations::*;
+    use sea_orm::{prelude::*, Database};
+
+    lazy_static::lazy_static! {
+    #[derive(Clone, Copy)]
+    static ref DATABASE_URL: String = {
+         let data_directory = AppDirs::new(Some("xyz.neuronek.cli"), true)
+             .unwrap()
+             .data_dir;
+         let filename = data_directory.join("db");
+         format!("sqlite://{}", filename.display())
+     };
+
+    static ref DATABASE_CONNECTION: DatabaseConnection = {
+             async_std::task::block_on(async {
+     let data_directory = AppDirs::new(Option::from("xyz.neuronek.cli"), true).unwrap().data_dir;
+     let filename = data_directory.clone().with_file_name("db");
+             let db_url = format!("sqlite://{}", filename.to_str().unwrap());
+
+            println!("Connecting to database at {}", db_url);
+
+                 Database::connect(db_url).await.unwrap()
+             })
+         };
+     }
+
+    pub(super) async fn migrate_database() {
+        let pending_migrations = Migrator::get_pending_migrations(&DATABASE_CONNECTION.clone())
+            .await
+            .unwrap_or_else(|err| {
+                println!("Failed to read pending migrations");
+                panic!("{}", err)
+            });
+
+        if !pending_migrations.is_empty() {
+            println!("There are {} migrations pending.", pending_migrations.len());
+            println!("Applying migrations...");
+            Migrator::up(&DATABASE_CONNECTION.clone(), Option::None)
+                .await
+                .unwrap();
+        } else {
+            println!("Everything is up to date!")
+        }
+    }
+}
+
 mod cli {
     use clap::{Parser, Subcommand};
-    use std::path::PathBuf;
-    use substance::SubstanceCommands;
+    use std::path::{PathBuf, StripPrefixError};
+    use substance::{create_substance, SubstanceCommands};
 
     pub(super) mod substance {
-        use clap::{Parser, Subcommand};
+        use clap::{Error, Parser, Subcommand};
+        use sea_orm::DbErr;
 
         #[derive(Parser, Debug)]
         #[command(version,about,long_about=None)]
@@ -32,11 +81,19 @@ mod cli {
             pub id: String,
         }
 
+        #[derive(Parser, Debug)]
+        #[command(version,about,long_about=None)]
+        pub struct ListSubstance {
+            #[arg(short = 'l', long)]
+            pub limit: String,
+        }
+
         #[derive(Subcommand)]
         pub enum SubstanceCommands {
             Create(CreateSubstance),
             Update(UpdateSubstance),
             Delete(DeleteSubstance),
+            List(ListSubstance),
         }
 
         #[derive(Parser)]
@@ -44,6 +101,10 @@ mod cli {
         pub(crate) struct SubstanceCommand {
             #[command(subcommand)]
             pub command: SubstanceCommands,
+        }
+
+        pub async fn create_substance(create_substance: CreateSubstance) -> Result<String, DbErr> {
+            todo!()
         }
     }
 
@@ -58,6 +119,7 @@ mod cli {
         about = "Dosage journal that knows!",
         long_about = "🧬 Intelligent dosage tracker application with purpose to monitor supplements, nootropics and psychoactive substances along with their long-term influence on one's mind and body."
     )]
+
     pub(super) struct Program {
         /// Optional name to operate on
         pub name: Option<String>,
@@ -79,7 +141,7 @@ mod cli {
 
         match cli.command {
             ProgramCommand::Substance(substance_command) => match substance_command.command {
-                SubstanceCommands::Create(_create_sibstance) => {
+                SubstanceCommands::Create(_command) => {
                     todo!()
                 }
                 SubstanceCommands::Delete(_delete_substance) => {
@@ -88,6 +150,7 @@ mod cli {
                 SubstanceCommands::Update(_update_substance) => {
                     todo!()
                 }
+                SubstanceCommands::List(_) => todo!(),
             },
         }
     }
@@ -96,6 +159,9 @@ mod cli {
 fn main() {
     // set_hook();
     set_panic_hook();
+    task::spawn(async {
+        db::migrate_database().await;
+    });
 
     task::block_on(async {
         cli::run_program().await;
