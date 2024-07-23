@@ -72,12 +72,12 @@ mod cli {
     use crate::db;
 
     pub(super) mod substance {
-        use std::borrow::Borrow;
 
         use crate::entities::{self, substance};
         use clap::{Parser, Subcommand};
         use sea_orm::{
-            ActiveModelTrait, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait, TryIntoModel,
+            ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait,
+            Set, TryIntoModel,
         };
 
         #[derive(Parser, Debug)]
@@ -158,6 +158,16 @@ mod cli {
             })
         }
 
+        pub async fn list_substances(
+            list_substance_query: ListSubstance,
+            database_connection: &DatabaseConnection,
+        ) -> Result<Vec<substance::Model>, DbErr> {
+            substance::Entity::find()
+                .paginate(database_connection, list_substance_query.limit)
+                .fetch_page(list_substance_query.page)
+                .await
+        }
+
         pub async fn execute_substance_command(
             command: SubstanceCommands,
             database_connection: &DatabaseConnection,
@@ -168,10 +178,16 @@ mod cli {
                         .await
                         .expect("Should create substance");
                 }
-                SubstanceCommands::Update(_) => todo!(),
+                SubstanceCommands::Update(command) => {
+                    update_substance(command, database_connection)
+                        .await
+                        .expect("Substance should be updated");
+                }
                 SubstanceCommands::Delete(_) => todo!(),
                 SubstanceCommands::List(query) => {
-                    list_substances(query, database_connection).await;
+                    list_substances(query, database_connection)
+                        .await
+                        .expect("Substances should be listed");
                 }
             }
         }
@@ -232,9 +248,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use self::cli::substance::{update_substance, CreateSubstance};
     use super::*;
-    use crate::cli::substance::{create_substance, CreateSubstance};
+    use crate::cli::substance::{
+        create_substance, list_substances, update_substance, CreateSubstance, ListSubstance,
+    };
     use sea_orm::sea_query::TableCreateStatement;
     use sea_orm::{
         ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, MockDatabase,
@@ -309,13 +326,38 @@ mod tests {
         let db = use_memory_sqlite().await;
         setup_schema(&db).await;
 
-        let command = UpdateSubstance {
+        let command = cli::substance::UpdateSubstance {
             id: 1,
             name: Option::from("Coffee".to_string()),
         };
 
         let result = update_substance(command, &db).await;
         assert!(result.is_err());
+    }
+
+    #[async_std::test]
+    async fn test_list_substances() {
+        let caffeine_fixture = entities::substance::Model {
+            id: 78,
+            name: "caffeine".to_owned(),
+        };
+
+        // Create a mock in-memory SQLite database
+        let db = MockDatabase::new(DatabaseBackend::Sqlite)
+            .append_query_results([[caffeine_fixture.clone()]])
+            .append_exec_results([MockExecResult {
+                last_insert_id: 78,
+                rows_affected: 1,
+            }])
+            .into_connection();
+
+        let substances = list_substances(ListSubstance { limit: 10, page: 0 }, &db)
+            .await
+            .expect("Should fetch substances");
+
+        assert!(!substances.is_empty());
+        assert!(substances.first().is_some());
+        assert_eq!(substances.first().unwrap().clone(), caffeine_fixture);
     }
 
     #[async_std::test]
@@ -337,7 +379,7 @@ mod tests {
         .await
         .expect("Substance should be created");
 
-        let command = UpdateSubstance {
+        let command = cli::substance::UpdateSubstance {
             id: 1,
             name: Option::from("Coffee".to_string()),
         };
@@ -348,7 +390,7 @@ mod tests {
         let substance = result.unwrap();
         assert_eq!(
             substance,
-            substance::Model {
+            entities::substance::Model {
                 id: 1,
                 name: "Coffee".to_owned()
             }
