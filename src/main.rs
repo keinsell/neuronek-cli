@@ -72,11 +72,12 @@ mod cli {
     use crate::db;
 
     pub(super) mod substance {
+        use std::borrow::Borrow;
 
-        use crate::entities;
+        use crate::entities::{self, substance};
         use clap::{Parser, Subcommand};
         use sea_orm::{
-            ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, Set, TryIntoModel,
+            ActiveModelTrait, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait, TryIntoModel,
         };
 
         #[derive(Parser, Debug)]
@@ -105,8 +106,10 @@ mod cli {
         #[derive(Parser, Debug)]
         #[command(version,about,long_about=None)]
         pub struct ListSubstance {
-            #[arg(short = 'l', long)]
-            pub limit: String,
+            #[arg(short = 'l', long, default_value_t = 10)]
+            pub limit: u64,
+            #[arg(short = 'p', long, default_value_t = 0)]
+            pub page: u64,
         }
 
         #[derive(Subcommand)]
@@ -163,15 +166,13 @@ mod cli {
                 SubstanceCommands::Create(payload) => {
                     create_substance(payload, database_connection)
                         .await
-                        .expect("Substance should be created");
+                        .expect("Should create substance");
                 }
-                SubstanceCommands::Update(payload) => {
-                    update_substance(payload, database_connection)
-                        .await
-                        .expect("Substance should be updated");
-                }
+                SubstanceCommands::Update(_) => todo!(),
                 SubstanceCommands::Delete(_) => todo!(),
-                SubstanceCommands::List(_) => todo!(),
+                SubstanceCommands::List(query) => {
+                    list_substances(query, database_connection).await;
+                }
             }
         }
     }
@@ -233,8 +234,7 @@ fn main() {
 mod tests {
     use self::cli::substance::{update_substance, CreateSubstance};
     use super::*;
-    use crate::cli::substance::{create_substance, UpdateSubstance};
-    use entities::substance;
+    use crate::cli::substance::{create_substance, CreateSubstance};
     use sea_orm::sea_query::TableCreateStatement;
     use sea_orm::{
         ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, MockDatabase,
