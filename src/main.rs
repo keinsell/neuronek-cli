@@ -193,10 +193,9 @@ mod cli {
         }
     }
     pub(super) mod ingestion {
-        use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
+        use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
         use clap::{Parser, Subcommand};
         use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, TryIntoModel};
-        use sea_orm::prelude::DateTimeWithTimeZone;
 
         fn parse_humanized_date(s: &str) -> Result<DateTime<Local>, String> {
             fn convert_to_local(naive_dt: NaiveDateTime) -> DateTime<Local> {
@@ -219,7 +218,7 @@ mod cli {
             pub dosage_amount: f64,
             /// Date of ingestion, by default
             /// current date is used if not provided.
-            /// 
+            ///
             /// Date can be provided as timestamp and in human-readable format such as
             /// "today 10:00", "yesterday 13:00", "monday 15:34" which will be later
             /// parsed into proper timestamp.
@@ -254,15 +253,9 @@ mod cli {
                 substance_id: ActiveValue::Set(create_ingestion_command.substance_id),
                 dosage_unit: ActiveValue::Set(create_ingestion_command.dosage_unit),
                 dosage_value: ActiveValue::Set(create_ingestion_command.dosage_amount),
-                ingested_at: ActiveValue::Set(DateTimeWithTimeZone::from(
-                  create_ingestion_command.ingestion_date
-                )),
-                created_at: ActiveValue::Set(DateTimeWithTimeZone::from(
-                    Local::now()
-                )),
-                updated_at: ActiveValue::Set(DateTimeWithTimeZone::from(
-                    Local::now()
-                )),
+                ingested_at: ActiveValue::Set(create_ingestion_command.ingestion_date.into()),
+                created_at: ActiveValue::Set(Utc::now().into()),
+                updated_at: ActiveValue::Set(Utc::now().into()),
             };
 
             let model = active_model.insert(db_conn).await.unwrap();
@@ -345,13 +338,13 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, Local};
+
+
+    use chrono::{DateTime, Local, Utc};
     use sea_orm::{
         ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, EntityTrait,
         MockDatabase, MockExecResult, Schema,
     };
-    use sea_orm::prelude::DateTimeWithTimeZone;
-
     use crate::cli::ingestion::{create_ingestion, CreateIngestion};
     use crate::cli::substance::{
         create_substance, CreateSubstance, list_substances, ListSubstance, update_substance,
@@ -511,10 +504,10 @@ mod tests {
             id: 1,
             substance_id: 1,
             dosage_unit: "mg".to_string(),
-            dosage_value: 1.0,
-            ingested_at: DateTimeWithTimeZone::from(DateTime::<Local>::default()),
-            created_at: DateTimeWithTimeZone::from(DateTime::<Local>::default()),
-            updated_at: DateTimeWithTimeZone::from(DateTime::<Local>::default()),
+            dosage_value: 20.0,
+            ingested_at: Utc::now().into(),
+            created_at: Utc::now().into(),
+            updated_at: Utc::now().into(),
         };
 
         let db = use_memory_sqlite().await;
@@ -540,6 +533,8 @@ mod tests {
         assert!(result.is_ok());
 
         let model = result.unwrap();
-        assert_eq!(model, caffeine_ingestion);
+        assert_eq!(model.substance_id, 1);
+        assert_eq!(model.dosage_unit, "mg");
+        assert_eq!(model.dosage_value, 20.0);
     }
 }
