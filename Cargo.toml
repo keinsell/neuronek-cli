@@ -28,6 +28,7 @@ sea-migration = {path = "./migration"}
 sea-entity = {path = "./entity"}
 lazy_static = "1.5.0"
 platform-dirs = "0.3.0"
+chrono = "0.4.38"
 
 [dev-dependencies]
 cargo-make = "0.37.14"

@@ -77,7 +77,6 @@ mod cli {
             ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait,
             Set, TryIntoModel,
         };
-        use crate::cli::substance;
 
         #[derive(Parser, Debug)]
         #[command(version,about,long_about=None)]
@@ -192,24 +191,62 @@ mod cli {
         }
     }
     pub(super) mod ingestion {
-        use clap::Parser;
+        use chrono::Local;
+        use clap::{Parser, Subcommand};
+        use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection,  DbErr, TryIntoModel};
+        use sea_orm::prelude::DateTimeWithTimeZone;
 
         #[derive(Parser, Debug)]
         #[command(version,about,long_about=None)]
         pub struct CreateIngestion {
             #[arg(short='s', long)]
-            pub substance_id: String,
+            pub substance_id: i32,
             #[arg(short='u', long)]
             pub dosage_unit: String,
             #[arg(short='a', long)]
-            pub dosage_amount: String,
+            pub dosage_amount: f64,
         }
 
+        #[derive(Subcommand)]
+        pub(crate) enum IngestionCommands {
+            Create(CreateIngestion),
+        }
+
+        #[derive(Parser)]
+        #[command(args_conflicts_with_subcommands = true)]
+        pub(crate) struct IngestionCommand {
+            #[command(subcommand)]
+            pub command: IngestionCommands,
+        }
+
+        pub async fn create_ingestion(create_ingestion_command: CreateIngestion, db_conn: &DatabaseConnection) -> Result<sea_entity::ingestion::Model, DbErr> {
+            let active_model = sea_entity::ingestion::ActiveModel {
+                id: Default::default(),
+                substance_id: ActiveValue::Set(create_ingestion_command.substance_id),
+                dosage_unit: ActiveValue::Set(create_ingestion_command.dosage_unit),
+                dosage_value: ActiveValue::Set(create_ingestion_command.dosage_amount),
+                ingested_at: ActiveValue::Set(DateTimeWithTimeZone::from(chrono::DateTime::<Local>::default())),
+                created_at: ActiveValue::Set(DateTimeWithTimeZone::from(chrono::DateTime::<Local>::default())),
+                updated_at: ActiveValue::Set(DateTimeWithTimeZone::from(chrono::DateTime::<Local>::default())),
+            };
+
+            let model = active_model.insert(db_conn).await.unwrap();
+            model.try_into_model()
+        }
+
+        pub async fn execute_ingestion_command(ingestion_command: IngestionCommand, db_conn: &DatabaseConnection) {
+            match ingestion_command.command {
+                IngestionCommands::Create(payload) => {
+                    create_ingestion(payload, db_conn).await.expect("Should create ingestion");
+                }
+            }
+        }
     }
 
     #[derive(Subcommand)]
     pub(super) enum ProgramCommand {
         Substance(substance::SubstanceCommand),
+        Ingestion(ingestion::IngestionCommand)
     }
 
     #[derive(Parser)]
@@ -246,6 +283,9 @@ mod cli {
                 )
                 .await;
             }
+            ProgramCommand::Ingestion(ingestion_command) => {
+                ingestion::execute_ingestion_command(ingestion_command, db::DATABASE_CONNECTION.deref()).await;
+            }
         }
     }
 }
@@ -262,15 +302,15 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{DateTime, Local};
     use super::*;
     use crate::cli::substance::{
         create_substance, list_substances, update_substance, CreateSubstance, ListSubstance,
     };
     use sea_orm::sea_query::TableCreateStatement;
-    use sea_orm::{
-        ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, MockDatabase,
-        MockExecResult, Schema,
-    };
+    use sea_orm::{ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, EntityTrait, MockDatabase, MockExecResult, Schema};
+    use sea_orm::prelude::DateTimeWithTimeZone;
+    use crate::cli::ingestion::{create_ingestion, CreateIngestion};
 
     /// Utility to use a database that behaves like a real one
     /// instead mock-up in which we know inputs and outputs.
@@ -279,10 +319,19 @@ mod tests {
     }
 
     async fn setup_schema(db: &DatabaseConnection) {
-        let schema = Schema::new(DbBackend::Sqlite);
-        let stmt: TableCreateStatement =
-            schema.create_table_from_entity(sea_entity::substance::Entity);
-        let _result = db.execute(db.get_database_backend().build(&stmt)).await;
+        const DB_BACKEND: DbBackend = DbBackend::Sqlite;
+
+        let backend = db.get_database_backend();
+        let schema = Schema::new(DB_BACKEND);
+
+        async fn execute_create_table(db: &DatabaseConnection, backend: &DbBackend, entity: impl EntityTrait) {
+            db.execute(
+                backend.build(&Schema::new(DB_BACKEND).create_table_from_entity(entity))
+            ).await.expect("");
+        }
+
+        execute_create_table(db, &backend, sea_entity::substance::Entity).await;
+        execute_create_table(db, &backend, sea_entity::ingestion::Entity).await;
     }
 
     #[async_std::test]
@@ -386,7 +435,7 @@ mod tests {
 
         create_substance(
             CreateSubstance {
-                name: caffeine_fixture.name.clone(),
+                name: "caffeine".to_owned(),
             },
             &db,
         )
@@ -409,5 +458,42 @@ mod tests {
                 name: "Coffee".to_owned()
             }
         );
+    }
+
+    #[async_std::test]
+    async fn test_create_ingestion() {
+        let caffeine_ingestion = sea_entity::ingestion::Model {
+            id: 1,
+            substance_id: 1,
+            dosage_unit: "mg".to_string(),
+            dosage_value: 1.0,
+            ingested_at: DateTimeWithTimeZone::from(DateTime::<Local>::default()),
+            created_at: DateTimeWithTimeZone::from(DateTime::<Local>::default()),
+            updated_at: DateTimeWithTimeZone::from(DateTime::<Local>::default()),
+        };
+
+        let db = use_memory_sqlite().await;
+        setup_schema(&db).await;
+
+        create_substance(
+            CreateSubstance {
+                name: "caffeine".to_owned(),
+            },
+            &db,
+        )
+            .await
+            .expect("Substance should be created");
+
+        let command = CreateIngestion {
+            substance_id: caffeine_ingestion.substance_id,
+            dosage_unit: caffeine_ingestion.dosage_unit.clone(),
+            dosage_amount: caffeine_ingestion.dosage_value,
+        };
+
+        let result = create_ingestion(command, &db).await;
+        assert!(result.is_ok());
+
+        let model = result.unwrap();
+        assert_eq!(model, caffeine_ingestion);
     }
 }
