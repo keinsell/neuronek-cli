@@ -1,14 +1,13 @@
 use async_std::task;
 use miette::set_panic_hook;
-
-mod entities;
+use sea_entity;
 
 mod db {
     use platform_dirs::AppDirs;
-    use sea_migrations::Migrator;
     use sea_orm::{Database, DatabaseConnection};
     use sea_orm_migration::prelude::*;
     use std::fs::{self, File};
+    use sea_migration::Migrator;
 
     fn get_database_uri() -> String {
         let application_directories = AppDirs::new(Some("xyz.neuronek.cli"), true).unwrap();
@@ -72,13 +71,13 @@ mod cli {
     use crate::db;
 
     pub(super) mod substance {
-
-        use crate::entities::{self, substance};
+        
         use clap::{Parser, Subcommand};
         use sea_orm::{
             ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait,
             Set, TryIntoModel,
         };
+        use crate::cli::substance;
 
         #[derive(Parser, Debug)]
         #[command(version,about,long_about=None)]
@@ -130,8 +129,8 @@ mod cli {
         pub async fn create_substance(
             create_substance_command: CreateSubstance,
             db_conn: &DatabaseConnection,
-        ) -> Result<entities::substance::Model, DbErr> {
-            let substance_active_model = entities::substance::ActiveModel {
+        ) -> Result<sea_entity::substance::Model, DbErr> {
+            let substance_active_model = sea_entity::substance::ActiveModel {
                 name: sea_orm::ActiveValue::set(create_substance_command.name),
                 ..Default::default()
             };
@@ -142,8 +141,8 @@ mod cli {
         pub async fn update_substance(
             update_substance: UpdateSubstance,
             db_conn: &DatabaseConnection,
-        ) -> Result<entities::substance::Model, DbErr> {
-            let active_model = entities::substance::ActiveModel {
+        ) -> Result<sea_entity::substance::Model, DbErr> {
+            let active_model = sea_entity::substance::ActiveModel {
                 id: Set(update_substance.id),
                 name: update_substance
                     .name
@@ -161,8 +160,8 @@ mod cli {
         pub async fn list_substances(
             list_substance_query: ListSubstance,
             database_connection: &DatabaseConnection,
-        ) -> Result<Vec<substance::Model>, DbErr> {
-            substance::Entity::find()
+        ) -> Result<Vec<sea_entity::substance::Model>, DbErr> {
+            sea_entity::substance::Entity::find()
                 .paginate(database_connection, list_substance_query.limit)
                 .fetch_page(list_substance_query.page)
                 .await
@@ -191,6 +190,21 @@ mod cli {
                 }
             }
         }
+    }
+    pub(super) mod ingestion {
+        use clap::Parser;
+
+        #[derive(Parser, Debug)]
+        #[command(version,about,long_about=None)]
+        pub struct CreateIngestion {
+            #[arg(short='s', long)]
+            pub substance_id: String,
+            #[arg(short='u', long)]
+            pub dosage_unit: String,
+            #[arg(short='a', long)]
+            pub dosage_amount: String,
+        }
+
     }
 
     #[derive(Subcommand)]
@@ -267,13 +281,13 @@ mod tests {
     async fn setup_schema(db: &DatabaseConnection) {
         let schema = Schema::new(DbBackend::Sqlite);
         let stmt: TableCreateStatement =
-            schema.create_table_from_entity(entities::substance::Entity);
+            schema.create_table_from_entity(sea_entity::substance::Entity);
         let _result = db.execute(db.get_database_backend().build(&stmt)).await;
     }
 
     #[async_std::test]
     async fn test_create_substance() {
-        let caffeine_fixture = entities::substance::Model {
+        let caffeine_fixture = sea_entity::substance::Model {
             id: 1,
             name: "caffeine".to_owned(),
         };
@@ -294,7 +308,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_create_substance_with_mock() {
-        let caffeine_fixture = entities::substance::Model {
+        let caffeine_fixture = sea_entity::substance::Model {
             id: 78,
             name: "caffeine".to_owned(),
         };
@@ -337,7 +351,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_list_substances() {
-        let caffeine_fixture = entities::substance::Model {
+        let caffeine_fixture = sea_entity::substance::Model {
             id: 78,
             name: "caffeine".to_owned(),
         };
@@ -362,7 +376,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_update_substance() {
-        let caffeine_fixture = entities::substance::Model {
+        let caffeine_fixture = sea_entity::substance::Model {
             id: 1,
             name: "caffeine".to_owned(),
         };
@@ -390,7 +404,7 @@ mod tests {
         let substance = result.unwrap();
         assert_eq!(
             substance,
-            entities::substance::Model {
+            sea_entity::substance::Model {
                 id: 1,
                 name: "Coffee".to_owned()
             }

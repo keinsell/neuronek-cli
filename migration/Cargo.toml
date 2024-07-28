@@ -1,19 +1,23 @@
 [package]
-name = "sea-migrations"
+name = "sea-migration"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [lib]
-name = "sea_migrations"
+name = "sea_migration"
 path = "src/lib.rs"
 
 [dependencies]
 async-std = { version = "1", features = ["attributes", "tokio1"] }
+sea-entity = { path = "../entity" }
+chrono = "*"
 
 [dependencies.sea-orm-migration]
 version = "1.0.0-rc.7"
 features = [
   "runtime-async-std-native-tls",
-  "sqlx-sqlite"
+  "sqlx-sqlite",
+  "with-chrono",
+  "sea-orm-cli"
 ]

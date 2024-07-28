@@ -2400,7 +2400,8 @@ dependencies = [
  "lazy_static",
  "miette",
  "platform-dirs",
- "sea-migrations",
+ "sea-entity",
+ "sea-migration",
  "sea-orm",
  "sea-orm-cli",
  "sea-orm-migration",
@@ -3507,10 +3508,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "sea-migrations"
+name = "sea-entity"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "chrono",
+ "sea-orm",
+ "sea-orm-migration",
+ "serde",
+]
+
+[[package]]
+name = "sea-migration"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "chrono",
+ "sea-entity",
  "sea-orm-migration",
 ]
 
