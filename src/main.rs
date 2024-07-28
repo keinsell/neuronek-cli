@@ -1,6 +1,7 @@
 use async_std::task;
 use miette::set_panic_hook;
 
+
 mod db {
     use std::fs::{self, File};
 
@@ -67,10 +68,10 @@ mod db {
 
 mod cli {
     use std::{ops::Deref, path::PathBuf};
-
     use clap::{Parser, Subcommand};
-
     use crate::db;
+
+
 
     pub(super) mod substance {
         use clap::{Parser, Subcommand};
@@ -131,7 +132,7 @@ mod cli {
             db_conn: &DatabaseConnection,
         ) -> Result<sea_entity::substance::Model, DbErr> {
             let substance_active_model = sea_entity::substance::ActiveModel {
-                name: sea_orm::ActiveValue::set(create_substance_command.name),
+                name: ActiveValue::set(create_substance_command.name),
                 ..Default::default()
             };
             let substance_model = substance_active_model.insert(db_conn).await.unwrap();
@@ -192,20 +193,44 @@ mod cli {
         }
     }
     pub(super) mod ingestion {
-        use chrono::Local;
+        use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
         use clap::{Parser, Subcommand};
         use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, TryIntoModel};
         use sea_orm::prelude::DateTimeWithTimeZone;
+
+        fn parse_humanized_date(s: &str) -> Result<DateTime<Local>, String> {
+            fn convert_to_local(naive_dt: NaiveDateTime) -> DateTime<Local> {
+                Local.from_local_datetime(&naive_dt).unwrap()
+            }
+
+            fuzzydate::parse(s)
+                .map(convert_to_local)
+                .map_err(|parse_error| format!("Failed to parse: {}", parse_error))
+        }
 
         #[derive(Parser, Debug)]
         #[command(version, about, long_about = None)]
         pub struct CreateIngestion {
             #[arg(short = 's', long)]
             pub substance_id: i32,
-            #[arg(short = 'u', long)]
+            #[arg(short = 'u', long, default_value_t=String::from("mg"))]
             pub dosage_unit: String,
-            #[arg(short = 'a', long)]
+            #[arg(short = 'v', long)]
             pub dosage_amount: f64,
+            /// Date of ingestion, by default
+            /// current date is used if not provided.
+            /// 
+            /// Date can be provided as timestamp and in human-readable format such as
+            /// "today 10:00", "yesterday 13:00", "monday 15:34" which will be later
+            /// parsed into proper timestamp.
+            #[arg(
+                short='t',
+                long,
+                value_parser=parse_humanized_date,
+                default_value_t=Local::now(),
+                default_value="now"
+            )]
+            pub ingestion_date: DateTime<Local>
         }
 
         #[derive(Subcommand)]
@@ -230,13 +255,13 @@ mod cli {
                 dosage_unit: ActiveValue::Set(create_ingestion_command.dosage_unit),
                 dosage_value: ActiveValue::Set(create_ingestion_command.dosage_amount),
                 ingested_at: ActiveValue::Set(DateTimeWithTimeZone::from(
-                    chrono::DateTime::<Local>::default(),
+                  create_ingestion_command.ingestion_date
                 )),
                 created_at: ActiveValue::Set(DateTimeWithTimeZone::from(
-                    chrono::DateTime::<Local>::default(),
+                    Local::now()
                 )),
                 updated_at: ActiveValue::Set(DateTimeWithTimeZone::from(
-                    chrono::DateTime::<Local>::default(),
+                    Local::now()
                 )),
             };
 
@@ -508,6 +533,7 @@ mod tests {
             substance_id: caffeine_ingestion.substance_id,
             dosage_unit: caffeine_ingestion.dosage_unit.clone(),
             dosage_amount: caffeine_ingestion.dosage_value,
+            ingestion_date: DateTime::<Local>::default()
         };
 
         let result = create_ingestion(command, &db).await;
