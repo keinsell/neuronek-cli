@@ -1,5 +1,4 @@
-use sea_orm_migration::{prelude::*, schema::*};
-use sea_orm;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -53,7 +52,7 @@ pub enum Ingestion {
     SubstanceId,
     DosageUnit,
     DosageValue,
-    #[sea_orm(type=ColumnType::Timestamp)]
+    #[sea_orm(type = ColumnType::Timestamp)]
     IngestedAt,
     CreatedAt,
     UpdatedAt,

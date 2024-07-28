@@ -1,12 +1,13 @@
 use async_std::task;
 use miette::set_panic_hook;
-use sea_entity;
 
 mod db {
+    use std::fs::{self, File};
+
     use platform_dirs::AppDirs;
     use sea_orm::{Database, DatabaseConnection};
     use sea_orm_migration::prelude::*;
-    use std::fs::{self, File};
+
     use sea_migration::Migrator;
 
     fn get_database_uri() -> String {
@@ -65,13 +66,13 @@ mod db {
 }
 
 mod cli {
-    use clap::{Parser, Subcommand};
     use std::{ops::Deref, path::PathBuf};
+
+    use clap::{Parser, Subcommand};
 
     use crate::db;
 
     pub(super) mod substance {
-        
         use clap::{Parser, Subcommand};
         use sea_orm::{
             ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait,
@@ -79,14 +80,14 @@ mod cli {
         };
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct CreateSubstance {
             #[arg(short, long)]
             pub name: String,
         }
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct UpdateSubstance {
             #[arg(short, long)]
             pub id: i32,
@@ -95,14 +96,14 @@ mod cli {
         }
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct DeleteSubstance {
             #[arg(short, long)]
             pub id: String,
         }
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct ListSubstance {
             #[arg(short = 'l', long, default_value_t = 10)]
             pub limit: u64,
@@ -193,17 +194,17 @@ mod cli {
     pub(super) mod ingestion {
         use chrono::Local;
         use clap::{Parser, Subcommand};
-        use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection,  DbErr, TryIntoModel};
+        use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, TryIntoModel};
         use sea_orm::prelude::DateTimeWithTimeZone;
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct CreateIngestion {
-            #[arg(short='s', long)]
+            #[arg(short = 's', long)]
             pub substance_id: i32,
-            #[arg(short='u', long)]
+            #[arg(short = 'u', long)]
             pub dosage_unit: String,
-            #[arg(short='a', long)]
+            #[arg(short = 'a', long)]
             pub dosage_amount: f64,
         }
 
@@ -219,25 +220,39 @@ mod cli {
             pub command: IngestionCommands,
         }
 
-        pub async fn create_ingestion(create_ingestion_command: CreateIngestion, db_conn: &DatabaseConnection) -> Result<sea_entity::ingestion::Model, DbErr> {
+        pub async fn create_ingestion(
+            create_ingestion_command: CreateIngestion,
+            db_conn: &DatabaseConnection,
+        ) -> Result<sea_entity::ingestion::Model, DbErr> {
             let active_model = sea_entity::ingestion::ActiveModel {
                 id: Default::default(),
                 substance_id: ActiveValue::Set(create_ingestion_command.substance_id),
                 dosage_unit: ActiveValue::Set(create_ingestion_command.dosage_unit),
                 dosage_value: ActiveValue::Set(create_ingestion_command.dosage_amount),
-                ingested_at: ActiveValue::Set(DateTimeWithTimeZone::from(chrono::DateTime::<Local>::default())),
-                created_at: ActiveValue::Set(DateTimeWithTimeZone::from(chrono::DateTime::<Local>::default())),
-                updated_at: ActiveValue::Set(DateTimeWithTimeZone::from(chrono::DateTime::<Local>::default())),
+                ingested_at: ActiveValue::Set(DateTimeWithTimeZone::from(
+                    chrono::DateTime::<Local>::default(),
+                )),
+                created_at: ActiveValue::Set(DateTimeWithTimeZone::from(
+                    chrono::DateTime::<Local>::default(),
+                )),
+                updated_at: ActiveValue::Set(DateTimeWithTimeZone::from(
+                    chrono::DateTime::<Local>::default(),
+                )),
             };
 
             let model = active_model.insert(db_conn).await.unwrap();
             model.try_into_model()
         }
 
-        pub async fn execute_ingestion_command(ingestion_command: IngestionCommand, db_conn: &DatabaseConnection) {
+        pub async fn execute_ingestion_command(
+            ingestion_command: IngestionCommand,
+            db_conn: &DatabaseConnection,
+        ) {
             match ingestion_command.command {
                 IngestionCommands::Create(payload) => {
-                    create_ingestion(payload, db_conn).await.expect("Should create ingestion");
+                    create_ingestion(payload, db_conn)
+                        .await
+                        .expect("Should create ingestion");
                 }
             }
         }
@@ -246,7 +261,7 @@ mod cli {
     #[derive(Subcommand)]
     pub(super) enum ProgramCommand {
         Substance(substance::SubstanceCommand),
-        Ingestion(ingestion::IngestionCommand)
+        Ingestion(ingestion::IngestionCommand),
     }
 
     #[derive(Parser)]
@@ -255,7 +270,6 @@ mod cli {
         about = "Dosage journal that knows!",
         long_about = "🧬 Intelligent dosage tracker application with purpose to monitor supplements, nootropics and psychoactive substances along with their long-term influence on one's mind and body."
     )]
-
     pub(super) struct Program {
         /// Optional name to operate on
         pub name: Option<String>,
@@ -281,10 +295,14 @@ mod cli {
                     substance_command.command,
                     db::DATABASE_CONNECTION.deref(),
                 )
-                .await;
+                    .await;
             }
             ProgramCommand::Ingestion(ingestion_command) => {
-                ingestion::execute_ingestion_command(ingestion_command, db::DATABASE_CONNECTION.deref()).await;
+                ingestion::execute_ingestion_command(
+                    ingestion_command,
+                    db::DATABASE_CONNECTION.deref(),
+                )
+                    .await;
             }
         }
     }
@@ -303,14 +321,18 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use chrono::{DateTime, Local};
-    use super::*;
-    use crate::cli::substance::{
-        create_substance, list_substances, update_substance, CreateSubstance, ListSubstance,
+    use sea_orm::{
+        ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, EntityTrait,
+        MockDatabase, MockExecResult, Schema,
     };
-    use sea_orm::sea_query::TableCreateStatement;
-    use sea_orm::{ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, EntityTrait, MockDatabase, MockExecResult, Schema};
     use sea_orm::prelude::DateTimeWithTimeZone;
+
     use crate::cli::ingestion::{create_ingestion, CreateIngestion};
+    use crate::cli::substance::{
+        create_substance, CreateSubstance, list_substances, ListSubstance, update_substance,
+    };
+
+    use super::*;
 
     /// Utility to use a database that behaves like a real one
     /// instead mock-up in which we know inputs and outputs.
@@ -322,12 +344,15 @@ mod tests {
         const DB_BACKEND: DbBackend = DbBackend::Sqlite;
 
         let backend = db.get_database_backend();
-        let schema = Schema::new(DB_BACKEND);
 
-        async fn execute_create_table(db: &DatabaseConnection, backend: &DbBackend, entity: impl EntityTrait) {
-            db.execute(
-                backend.build(&Schema::new(DB_BACKEND).create_table_from_entity(entity))
-            ).await.expect("");
+        async fn execute_create_table(
+            db: &DatabaseConnection,
+            backend: &DbBackend,
+            entity: impl EntityTrait,
+        ) {
+            db.execute(backend.build(&Schema::new(DB_BACKEND).create_table_from_entity(entity)))
+                .await
+                .expect("");
         }
 
         execute_create_table(db, &backend, sea_entity::substance::Entity).await;
@@ -425,11 +450,6 @@ mod tests {
 
     #[async_std::test]
     async fn test_update_substance() {
-        let caffeine_fixture = sea_entity::substance::Model {
-            id: 1,
-            name: "caffeine".to_owned(),
-        };
-
         let db = use_memory_sqlite().await;
         setup_schema(&db).await;
 
@@ -439,8 +459,8 @@ mod tests {
             },
             &db,
         )
-        .await
-        .expect("Substance should be created");
+            .await
+            .expect("Substance should be created");
 
         let command = cli::substance::UpdateSubstance {
             id: 1,
@@ -455,7 +475,7 @@ mod tests {
             substance,
             sea_entity::substance::Model {
                 id: 1,
-                name: "Coffee".to_owned()
+                name: "Coffee".to_owned(),
             }
         );
     }
