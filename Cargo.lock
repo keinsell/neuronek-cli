@@ -3525,6 +3525,7 @@ dependencies = [
  "async-std",
  "chrono",
  "sea-entity",
+ "sea-orm",
  "sea-orm-migration",
 ]
 

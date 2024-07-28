@@ -1,8 +1,5 @@
 use sea_orm_migration::{prelude::*, schema::*};
-use sea_orm_migration::seaql_migrations::Entity;
-use sea_entity::ingestion;
-use crate::ColumnType::DateTime;
-use crate::sea_orm::Schema;
+use sea_orm;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -26,9 +23,9 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Ingestion::SubstanceId).integer().not_null())
                     .col(ColumnDef::new(Ingestion::DosageUnit).string().not_null())
                     .col(ColumnDef::new(Ingestion::DosageValue).double().not_null())
-                    .col(ColumnDef::new(Ingestion::IngestedAt).date_time().not_null())
-                    .col(ColumnDef::new(Ingestion::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(Ingestion::UpdatedAt).date_time().not_null())
+                    .col(ColumnDef::new(Ingestion::IngestedAt).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(Ingestion::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(Ingestion::UpdatedAt).timestamp_with_time_zone().not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_ingestion_substance")
@@ -49,19 +46,20 @@ impl MigrationTrait for Migration {
     }
 }
 
-#[derive(Iden)]
+#[derive(DeriveIden)]
 pub enum Ingestion {
     Table,
     Id,
     SubstanceId,
     DosageUnit,
     DosageValue,
+    #[sea_orm(type=ColumnType::Timestamp)]
     IngestedAt,
     CreatedAt,
     UpdatedAt,
 }
 
-#[derive(Iden)]
+#[derive(DeriveIden)]
 pub enum Substance {
     Table,
     Id,

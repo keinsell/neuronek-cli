@@ -39,3 +39,5 @@
     ```sh
     cargo run -- status
     ```
+
+https://www.sea-ql.org/SeaORM/docs/next/migration/setting-up-migration/
