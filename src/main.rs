@@ -1,14 +1,15 @@
 use async_std::task;
 use miette::set_panic_hook;
 
-mod entities;
 
 mod db {
+    use std::fs::{self, File};
+
     use platform_dirs::AppDirs;
-    use sea_migrations::Migrator;
     use sea_orm::{Database, DatabaseConnection};
     use sea_orm_migration::prelude::*;
-    use std::fs::{self, File};
+
+    use sea_migration::Migrator;
 
     fn get_database_uri() -> String {
         let application_directories = AppDirs::new(Some("xyz.neuronek.cli"), true).unwrap();
@@ -66,14 +67,13 @@ mod db {
 }
 
 mod cli {
-    use clap::{Parser, Subcommand};
     use std::{ops::Deref, path::PathBuf};
-
+    use clap::{Parser, Subcommand};
     use crate::db;
 
-    pub(super) mod substance {
 
-        use crate::entities::{self, substance};
+
+    pub(super) mod substance {
         use clap::{Parser, Subcommand};
         use sea_orm::{
             ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait,
@@ -81,14 +81,14 @@ mod cli {
         };
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct CreateSubstance {
             #[arg(short, long)]
             pub name: String,
         }
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct UpdateSubstance {
             #[arg(short, long)]
             pub id: i32,
@@ -97,14 +97,14 @@ mod cli {
         }
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct DeleteSubstance {
             #[arg(short, long)]
             pub id: String,
         }
 
         #[derive(Parser, Debug)]
-        #[command(version,about,long_about=None)]
+        #[command(version, about, long_about = None)]
         pub struct ListSubstance {
             #[arg(short = 'l', long, default_value_t = 10)]
             pub limit: u64,
@@ -130,9 +130,9 @@ mod cli {
         pub async fn create_substance(
             create_substance_command: CreateSubstance,
             db_conn: &DatabaseConnection,
-        ) -> Result<entities::substance::Model, DbErr> {
-            let substance_active_model = entities::substance::ActiveModel {
-                name: sea_orm::ActiveValue::set(create_substance_command.name),
+        ) -> Result<sea_entity::substance::Model, DbErr> {
+            let substance_active_model = sea_entity::substance::ActiveModel {
+                name: ActiveValue::set(create_substance_command.name),
                 ..Default::default()
             };
             let substance_model = substance_active_model.insert(db_conn).await.unwrap();
@@ -142,8 +142,8 @@ mod cli {
         pub async fn update_substance(
             update_substance: UpdateSubstance,
             db_conn: &DatabaseConnection,
-        ) -> Result<entities::substance::Model, DbErr> {
-            let active_model = entities::substance::ActiveModel {
+        ) -> Result<sea_entity::substance::Model, DbErr> {
+            let active_model = sea_entity::substance::ActiveModel {
                 id: Set(update_substance.id),
                 name: update_substance
                     .name
@@ -161,8 +161,8 @@ mod cli {
         pub async fn list_substances(
             list_substance_query: ListSubstance,
             database_connection: &DatabaseConnection,
-        ) -> Result<Vec<substance::Model>, DbErr> {
-            substance::Entity::find()
+        ) -> Result<Vec<sea_entity::substance::Model>, DbErr> {
+            sea_entity::substance::Entity::find()
                 .paginate(database_connection, list_substance_query.limit)
                 .fetch_page(list_substance_query.page)
                 .await
@@ -192,10 +192,94 @@ mod cli {
             }
         }
     }
+    pub(super) mod ingestion {
+        use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
+        use clap::{Parser, Subcommand};
+        use sea_orm::{ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, TryIntoModel};
+
+        fn parse_humanized_date(s: &str) -> Result<DateTime<Local>, String> {
+            fn convert_to_local(naive_dt: NaiveDateTime) -> DateTime<Local> {
+                Local.from_local_datetime(&naive_dt).unwrap()
+            }
+
+            fuzzydate::parse(s)
+                .map(convert_to_local)
+                .map_err(|parse_error| format!("Failed to parse: {}", parse_error))
+        }
+
+        #[derive(Parser, Debug)]
+        #[command(version, about, long_about = None)]
+        pub struct CreateIngestion {
+            #[arg(short = 's', long)]
+            pub substance_id: i32,
+            #[arg(short = 'u', long, default_value_t=String::from("mg"))]
+            pub dosage_unit: String,
+            #[arg(short = 'v', long)]
+            pub dosage_amount: f64,
+            /// Date of ingestion, by default
+            /// current date is used if not provided.
+            ///
+            /// Date can be provided as timestamp and in human-readable format such as
+            /// "today 10:00", "yesterday 13:00", "monday 15:34" which will be later
+            /// parsed into proper timestamp.
+            #[arg(
+                short='t',
+                long,
+                value_parser=parse_humanized_date,
+                default_value_t=Local::now(),
+                default_value="now"
+            )]
+            pub ingestion_date: DateTime<Local>
+        }
+
+        #[derive(Subcommand)]
+        pub(crate) enum IngestionCommands {
+            Create(CreateIngestion),
+        }
+
+        #[derive(Parser)]
+        #[command(args_conflicts_with_subcommands = true)]
+        pub(crate) struct IngestionCommand {
+            #[command(subcommand)]
+            pub command: IngestionCommands,
+        }
+
+        pub async fn create_ingestion(
+            create_ingestion_command: CreateIngestion,
+            db_conn: &DatabaseConnection,
+        ) -> Result<sea_entity::ingestion::Model, DbErr> {
+            let active_model = sea_entity::ingestion::ActiveModel {
+                id: Default::default(),
+                substance_id: ActiveValue::Set(create_ingestion_command.substance_id),
+                dosage_unit: ActiveValue::Set(create_ingestion_command.dosage_unit),
+                dosage_value: ActiveValue::Set(create_ingestion_command.dosage_amount),
+                ingested_at: ActiveValue::Set(create_ingestion_command.ingestion_date.into()),
+                created_at: ActiveValue::Set(Utc::now().into()),
+                updated_at: ActiveValue::Set(Utc::now().into()),
+            };
+
+            let model = active_model.insert(db_conn).await.unwrap();
+            model.try_into_model()
+        }
+
+        pub async fn execute_ingestion_command(
+            ingestion_command: IngestionCommand,
+            db_conn: &DatabaseConnection,
+        ) {
+            match ingestion_command.command {
+                IngestionCommands::Create(payload) => {
+                    create_ingestion(payload, db_conn)
+                        .await
+                        .expect("Should create ingestion");
+                }
+            }
+        }
+    }
 
     #[derive(Subcommand)]
     pub(super) enum ProgramCommand {
         Substance(substance::SubstanceCommand),
+        Ingestion(ingestion::IngestionCommand),
     }
 
     #[derive(Parser)]
@@ -204,7 +288,6 @@ mod cli {
         about = "Dosage journal that knows!",
         long_about = "🧬 Intelligent dosage tracker application with purpose to monitor supplements, nootropics and psychoactive substances along with their long-term influence on one's mind and body."
     )]
-
     pub(super) struct Program {
         /// Optional name to operate on
         pub name: Option<String>,
@@ -230,7 +313,14 @@ mod cli {
                     substance_command.command,
                     db::DATABASE_CONNECTION.deref(),
                 )
-                .await;
+                    .await;
+            }
+            ProgramCommand::Ingestion(ingestion_command) => {
+                ingestion::execute_ingestion_command(
+                    ingestion_command,
+                    db::DATABASE_CONNECTION.deref(),
+                )
+                    .await;
             }
         }
     }
@@ -248,15 +338,19 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::cli::substance::{
-        create_substance, list_substances, update_substance, CreateSubstance, ListSubstance,
-    };
-    use sea_orm::sea_query::TableCreateStatement;
+
+
+    use chrono::{DateTime, Local, Utc};
     use sea_orm::{
-        ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, MockDatabase,
-        MockExecResult, Schema,
+        ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, EntityTrait,
+        MockDatabase, MockExecResult, Schema,
     };
+    use crate::cli::ingestion::{create_ingestion, CreateIngestion};
+    use crate::cli::substance::{
+        create_substance, CreateSubstance, list_substances, ListSubstance, update_substance,
+    };
+
+    use super::*;
 
     /// Utility to use a database that behaves like a real one
     /// instead mock-up in which we know inputs and outputs.
@@ -265,15 +359,27 @@ mod tests {
     }
 
     async fn setup_schema(db: &DatabaseConnection) {
-        let schema = Schema::new(DbBackend::Sqlite);
-        let stmt: TableCreateStatement =
-            schema.create_table_from_entity(entities::substance::Entity);
-        let _result = db.execute(db.get_database_backend().build(&stmt)).await;
+        const DB_BACKEND: DbBackend = DbBackend::Sqlite;
+
+        let backend = db.get_database_backend();
+
+        async fn execute_create_table(
+            db: &DatabaseConnection,
+            backend: &DbBackend,
+            entity: impl EntityTrait,
+        ) {
+            db.execute(backend.build(&Schema::new(DB_BACKEND).create_table_from_entity(entity)))
+                .await
+                .expect("");
+        }
+
+        execute_create_table(db, &backend, sea_entity::substance::Entity).await;
+        execute_create_table(db, &backend, sea_entity::ingestion::Entity).await;
     }
 
     #[async_std::test]
     async fn test_create_substance() {
-        let caffeine_fixture = entities::substance::Model {
+        let caffeine_fixture = sea_entity::substance::Model {
             id: 1,
             name: "caffeine".to_owned(),
         };
@@ -294,7 +400,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_create_substance_with_mock() {
-        let caffeine_fixture = entities::substance::Model {
+        let caffeine_fixture = sea_entity::substance::Model {
             id: 78,
             name: "caffeine".to_owned(),
         };
@@ -337,7 +443,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_list_substances() {
-        let caffeine_fixture = entities::substance::Model {
+        let caffeine_fixture = sea_entity::substance::Model {
             id: 78,
             name: "caffeine".to_owned(),
         };
@@ -362,22 +468,17 @@ mod tests {
 
     #[async_std::test]
     async fn test_update_substance() {
-        let caffeine_fixture = entities::substance::Model {
-            id: 1,
-            name: "caffeine".to_owned(),
-        };
-
         let db = use_memory_sqlite().await;
         setup_schema(&db).await;
 
         create_substance(
             CreateSubstance {
-                name: caffeine_fixture.name.clone(),
+                name: "caffeine".to_owned(),
             },
             &db,
         )
-        .await
-        .expect("Substance should be created");
+            .await
+            .expect("Substance should be created");
 
         let command = cli::substance::UpdateSubstance {
             id: 1,
@@ -390,10 +491,50 @@ mod tests {
         let substance = result.unwrap();
         assert_eq!(
             substance,
-            entities::substance::Model {
+            sea_entity::substance::Model {
                 id: 1,
-                name: "Coffee".to_owned()
+                name: "Coffee".to_owned(),
             }
         );
+    }
+
+    #[async_std::test]
+    async fn test_create_ingestion() {
+        let caffeine_ingestion = sea_entity::ingestion::Model {
+            id: 1,
+            substance_id: 1,
+            dosage_unit: "mg".to_string(),
+            dosage_value: 20.0,
+            ingested_at: Utc::now().into(),
+            created_at: Utc::now().into(),
+            updated_at: Utc::now().into(),
+        };
+
+        let db = use_memory_sqlite().await;
+        setup_schema(&db).await;
+
+        create_substance(
+            CreateSubstance {
+                name: "caffeine".to_owned(),
+            },
+            &db,
+        )
+            .await
+            .expect("Substance should be created");
+
+        let command = CreateIngestion {
+            substance_id: caffeine_ingestion.substance_id,
+            dosage_unit: caffeine_ingestion.dosage_unit.clone(),
+            dosage_amount: caffeine_ingestion.dosage_value,
+            ingestion_date: DateTime::<Local>::default()
+        };
+
+        let result = create_ingestion(command, &db).await;
+        assert!(result.is_ok());
+
+        let model = result.unwrap();
+        assert_eq!(model.substance_id, 1);
+        assert_eq!(model.dosage_unit, "mg");
+        assert_eq!(model.dosage_value, 20.0);
     }
 }
