@@ -1,7 +1,6 @@
 use async_std::task;
 use miette::set_panic_hook;
 
-
 mod db {
     use std::fs::{self, File};
 
@@ -67,11 +66,9 @@ mod db {
 }
 
 mod cli {
-    use std::{ops::Deref, path::PathBuf};
-    use clap::{Parser, Subcommand};
     use crate::db;
-
-
+    use clap::{Parser, Subcommand};
+    use std::{ops::Deref, path::PathBuf};
 
     pub(super) mod substance {
         use clap::{Parser, Subcommand};
@@ -79,6 +76,8 @@ mod cli {
             ActiveModelTrait, ActiveValue, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait,
             Set, TryIntoModel,
         };
+        use tabled::{Table, Tabled};
+        use tabled::settings::Style;
 
         #[derive(Parser, Debug)]
         #[command(version, about, long_about = None)]
@@ -127,6 +126,12 @@ mod cli {
             pub command: SubstanceCommands,
         }
 
+        #[derive(Tabled)]
+        pub(crate) struct Substance {
+            id: i32,
+            name: String,
+        }
+
         pub async fn create_substance(
             create_substance_command: CreateSubstance,
             db_conn: &DatabaseConnection,
@@ -161,11 +166,22 @@ mod cli {
         pub async fn list_substances(
             list_substance_query: ListSubstance,
             database_connection: &DatabaseConnection,
-        ) -> Result<Vec<sea_entity::substance::Model>, DbErr> {
-            sea_entity::substance::Entity::find()
+        ) {
+            let entities = sea_entity::substance::Entity::find()
                 .paginate(database_connection, list_substance_query.limit)
                 .fetch_page(list_substance_query.page)
                 .await
+                .expect("Substances should be fetched");
+
+            let substances: Vec<Substance> = entities.into_iter().map(|entity| Substance {
+                id: entity.id,
+                name: entity.name,
+            }).collect();
+
+            let mut substance_table = Table::new(substances);
+            substance_table.with(Style::rounded());
+
+            println!("{}", substance_table.to_string());
         }
 
         pub async fn execute_substance_command(
@@ -185,9 +201,7 @@ mod cli {
                 }
                 SubstanceCommands::Delete(_) => todo!(),
                 SubstanceCommands::List(query) => {
-                    list_substances(query, database_connection)
-                        .await
-                        .expect("Substances should be listed");
+                    let substances = list_substances(query, database_connection).await;
                 }
             }
         }
@@ -229,7 +243,7 @@ mod cli {
                 default_value_t=Local::now(),
                 default_value="now"
             )]
-            pub ingestion_date: DateTime<Local>
+            pub ingestion_date: DateTime<Local>,
         }
 
         #[derive(Subcommand)]
@@ -338,16 +352,14 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-
-
+    use crate::cli::ingestion::{create_ingestion, CreateIngestion};
+    use crate::cli::substance::{
+        create_substance, list_substances, update_substance, CreateSubstance, ListSubstance,
+    };
     use chrono::{DateTime, Local, Utc};
     use sea_orm::{
         ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbBackend, EntityTrait,
         MockDatabase, MockExecResult, Schema,
-    };
-    use crate::cli::ingestion::{create_ingestion, CreateIngestion};
-    use crate::cli::substance::{
-        create_substance, CreateSubstance, list_substances, ListSubstance, update_substance,
     };
 
     use super::*;
@@ -458,12 +470,7 @@ mod tests {
             .into_connection();
 
         let substances = list_substances(ListSubstance { limit: 10, page: 0 }, &db)
-            .await
-            .expect("Should fetch substances");
-
-        assert!(!substances.is_empty());
-        assert!(substances.first().is_some());
-        assert_eq!(substances.first().unwrap().clone(), caffeine_fixture);
+            .await;
     }
 
     #[async_std::test]
@@ -526,7 +533,7 @@ mod tests {
             substance_id: caffeine_ingestion.substance_id,
             dosage_unit: caffeine_ingestion.dosage_unit.clone(),
             dosage_amount: caffeine_ingestion.dosage_value,
-            ingestion_date: DateTime::<Local>::default()
+            ingestion_date: DateTime::<Local>::default(),
         };
 
         let result = create_ingestion(command, &db).await;
