@@ -1,0 +1,29 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-std = "1.12.0"
+miette = { version = "7.2.0", features = ["fancy", "serde", "syntect"] }
+thiserror = "1.0.63"
+sea-orm = { version = "1.0.0-rc.7", features = [
+	"sqlx-sqlite",
+	"runtime-async-std-native-tls",
+	"macros",
+	"mock",
+] }
+clap = { version = "4.5.9", features = [
+	"cargo",
+	"derive",
+	"env",
+	"string",
+	"unicode",
+	"wrap_help",
+	"deprecated",
+] }
+sea-orm-cli = { version = "1.0.0-rc.7" }
+sea-orm-migration = "1.0.0-rc.7"
+platform-dirs = "0.3.0"
+sled = "0.34.7"
+chrono = "0.4.38"

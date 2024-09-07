@@ -1,19 +1,17 @@
 [package]
-name = "sea-migration"
+name = "nudb_migration"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [lib]
-name = "sea_migration"
+name = "nudb_migration"
 path = "src/lib.rs"
 
 [dependencies]
 async-std = { version = "1", features = ["attributes", "tokio1"] }
-sea-entity = { path = "../entity" }
 chrono = "*"
 sea-orm = { version = "1.0.0-rc.7", features = ["sqlx-sqlite", "runtime-async-std-native-tls", "macros", "mock", "with-chrono"] }
-
 [dependencies.sea-orm-migration]
 version = "1.0.0-rc.7"
 features = [
