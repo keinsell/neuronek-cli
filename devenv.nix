@@ -4,7 +4,8 @@
   config,
   inputs,
   ...
-}: {
+}:
+ {
   # https://devenv.sh/basics/
   env = {
     PROJECT = "neuronek-cli";
@@ -29,8 +30,9 @@
     direnv
     nix-direnv
     nix-direnv-flakes
-    sea-orm-cli
     sccache
+    adrgen
+    atlas
   ];
 
   # https://devenv.sh/languages/
@@ -53,6 +55,8 @@
   scripts.motd.exec = "onefetch";
   scripts.build.exec = "cargo build";
   scripts.test.exec = "cargo test";
+  scripts.dev.exec = "bacon";
+  scripts.nd.exec = "cargo run";
 
   enterShell = ''
     motd
