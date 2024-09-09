@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/cli/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/packages/nudb/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/packages/nudb-migration/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cli/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/migration/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/packages/nudb/target" />

@@ -1,0 +1,9 @@
+brace_style = "AlwaysNextLine"
+combine_control_expr = false
+control_brace_style = "AlwaysNextLine"
+fn_single_line = true
+# Write an item and its attribute on the same line if their combined width is below a threshold
+inline_attribute_width = 60
+# Controls whether to include a leading pipe on match arms
+match_arm_leading_pipes = "Always"
+imports_granularity = "Item"
