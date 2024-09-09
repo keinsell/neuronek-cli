@@ -1,15 +1,17 @@
-{
-  pkgs,
-  lib,
-  config,
-  inputs,
-  ...
+{ pkgs
+, lib
+, config
+, inputs
+, ...
 }:
- {
+{
   # https://devenv.sh/basics/
   env = {
     PROJECT = "neuronek-cli";
-    RUSTC_WRAPPER = "${pkgs.sccache}/bin/sccache";
+    RUSTC_WRAPPER = "sccache";
+    RUST_BACKTRACE = "full";
+    CARGO_LOG = "warn";
+    SCCACHE_LOG = "warn";
   };
 
   dotenv = {
@@ -19,7 +21,7 @@
 
   devenv = {
     debug = false;
-    warnOnNewVersion = true;
+    warnOnNewVersion = false;
   };
 
   # https://devenv.sh/packages/
@@ -32,7 +34,12 @@
     nix-direnv-flakes
     sccache
     adrgen
-    atlas
+    cargo-temp
+    cargo-chef
+    cargo-vet
+    cargo-make
+    rustfilt
+    sqlite
   ];
 
   # https://devenv.sh/languages/
@@ -40,19 +47,24 @@
     rust = {
       enable = true;
       channel = "nightly";
-      rustflags = "-Z threads=32";
-      components = ["rustc" "cargo" "clippy" "rustfmt" "rust-analyzer"];
+      rustflags = "-Z threads=0";
+      mold.enable = true;
+      components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" "rust-src" "llvm-tools" "rust-docs" ];
     };
   };
 
   # https://devenv.sh/processes/
-  # processes.cargo-watch.exec = "cargo-watch";
+   processes.cargo-watch.exec = "cargo-watch";
 
   # https://devenv.sh/services/
   # services.postgres.enable = true;
 
   # https://devenv.sh/scripts/
   scripts.motd.exec = "onefetch";
+  scripts.lint.exec = ''
+   cargo clippy --fix
+   cargo fmt --all
+  '';
   scripts.build.exec = "cargo build";
   scripts.test.exec = "cargo test";
   scripts.dev.exec = "bacon";

@@ -1,0 +1,4 @@
+- [ ] [Configure settings struct with automatic configuration resolving by multiple sources](https://github.com/mehcode/config-rs/blob/master/examples/hierarchical-env/settings.rs)
+- [ ] https://github.com/cortesi/canopy/blob/2f6fa55c40832d78cf76d8ff31bf4ef0fca9312e/TODO.md?plain=1#L51
+- [ ] https://github.com/loichyan/nerdfix/tree/a5bd0096ae857f2042f1aa8c622cc0408bf81b2b
+- [ ]

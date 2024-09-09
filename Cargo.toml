@@ -7,3 +7,6 @@ members = ["cli", "packages/nudb", "packages/nudb-migration"]
 #cargo-make = "0.37.14"
 #cargo-nextest = "0.9.11"
 #sea-orm-cli = { version = "1.0.0-rc.7" }
+
+[workspace.dependencies]
+libsqlite3-sys = "0.30.1"
