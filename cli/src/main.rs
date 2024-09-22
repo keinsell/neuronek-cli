@@ -1,14 +1,15 @@
 use crate::database::DATABASE_CONNECTION;
 use crate::ingestion::log_ingestion::log_ingestion;
 use crate::settings::ensure_xdg_directories;
+use async_std::task;
 use clap::Parser;
 use clap::Subcommand;
-use log::info;
 use miette::set_panic_hook;
 use nudb_migration::IntoSchemaManagerConnection;
 use nudb_migration::MigratorTrait;
 
 mod database;
+mod humanize;
 mod ingestion;
 mod logger;
 mod settings;
@@ -86,24 +87,13 @@ fn main()
         handle_migration.await;
     });
 
-    // You can check for the existence of subcommands, and if found use their
-    // matches just as you would the top level cmd
     match &cli.command
     {
-        | Some(Commands::LogIngestion(command)) => log_ingestion(command),
-        | Some(Commands::Test { list }) =>
+        | Some(Commands::LogIngestion(command)) =>
         {
-            if *list
-            {
-                println!("Printing testing lists...");
-                info!("Hello World")
-            }
-            else
-            {
-                println!("Not printing testing lists...");
-            }
+            task::block_on(log_ingestion(command, &db_connection))
         }
-        | None =>
-        {}
+        | None => println!("No command provided"),
+        | _ => println!("No command provided"),
     }
 }

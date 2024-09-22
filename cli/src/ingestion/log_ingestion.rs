@@ -1,15 +1,18 @@
 use crate::humanize::human_date_parser;
+use crate::ingestion::ingestion::IngestionViewModel;
+use crate::ingestion::RouteOfAdministrationClassification;
+use assert_cmd::Command;
 use chrono::DateTime;
 use chrono::Local;
 use clap::Parser;
 use clap::Subcommand;
 use nudb_migration::sea_orm::ActiveValue;
+use nudb_migration::sea_orm::DatabaseConnection;
 use nudb_migration::sea_orm::EntityTrait;
+use tabled::Table;
 use tracing::event;
 use tracing::instrument;
 use tracing::Level;
-
-use super::ingestion::RouteOfAdministrationClassification;
 
 #[derive(Subcommand)]
 pub enum IngestionCommands
@@ -40,27 +43,72 @@ pub struct LogIngestion
     value_parser=human_date_parser,
             )]
     pub ingestion_date: DateTime<Local>,
-    // #[arg(short = 'r', long)]
-    // pub route_of_administration: RouteOfAdministrationClassification,
+    #[clap(short = 'r', long, default_value_t, value_enum)]
+    pub route_of_administration: RouteOfAdministrationClassification,
 }
 
 #[instrument(name = "log_ingestion", level = Level::INFO)]
-pub fn log_ingestion(command: &LogIngestion)
+pub async fn log_ingestion(command: &LogIngestion, database_connection: &DatabaseConnection)
 {
     dbg!("This should log ingestion {:?}", command);
 
-    nudb::ingestion::Entity::insert(nudb::ingestion::ActiveModel {
+    let insert_ingestion = nudb::ingestion::Entity::insert(nudb::ingestion::ActiveModel {
         id: ActiveValue::default(),
         substance_name: ActiveValue::Set(command.substance_name.to_lowercase()),
-        // TODO: Jak zserializowac to gowno?
-        route_of_administration: todo!(),
+        route_of_administration: ActiveValue::Set(command.route_of_administration.serialize()),
         // TODO: Dodac parsowanie unitow masy i zapisywac informacje w kilogramach, output do uzytkownika powinien byc automatycznie skracany np. 0.0001 do mg czy g.
-        dosage: todo!(),
-        notes: todo!(),
-        ingested_at: todo!(),
-        updated_at: todo!(),
-        created_at: todo!(),
-    });
+        dosage: ActiveValue::Set(command.dosage_amount as f32),
+        notes: ActiveValue::NotSet,
+        ingested_at: ActiveValue::Set(command.ingestion_date.naive_local()),
+        updated_at: ActiveValue::Set(Local::now().naive_local()),
+        created_at: ActiveValue::Set(Local::now().naive_local()),
+    })
+    .exec_with_returning(database_connection)
+    .await
+    .unwrap();
 
-    event!(Level::INFO, "Ingestion Logged");
+    event!(Level::INFO, "Ingestion Logged {:?}", &insert_ingestion);
+
+    // Create an Ingestion struct to display
+    let ingestion_to_display = IngestionViewModel {
+        id: insert_ingestion.id,
+        substance_name: insert_ingestion.substance_name,
+        route_of_administration: insert_ingestion.route_of_administration,
+        dosage: insert_ingestion.dosage,
+        notes: insert_ingestion.notes,
+        ingested_at: insert_ingestion.ingested_at,
+        updated_at: insert_ingestion.updated_at,
+        created_at: insert_ingestion.created_at,
+    };
+
+    // Create and print the table
+    let table = Table::new(vec![ingestion_to_display]);
+    println!("{}", table);
+}
+
+#[test]
+fn should_log_ingestion() -> Result<(), Box<dyn std::error::Error>>
+{
+    let mut cmd = Command::cargo_bin("neuronek")?;
+
+    let substance_name = "Aspirin";
+    let ingestion_date = Local::now().to_string();
+
+    cmd.arg("log-ingestion")
+        .arg("-s")
+        .arg(substance_name)
+        .arg("-v")
+        .arg("500")
+        .arg("-u")
+        .arg("mg")
+        .arg("-t")
+        .arg(&ingestion_date);
+
+    // Simulate `neuronek` command and ensure it succeeds
+    cmd.assert()
+        .success()
+        .to_string()
+        .contains("Ingestion Logged");
+
+    Ok(())
 }

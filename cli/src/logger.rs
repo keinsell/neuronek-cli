@@ -11,8 +11,5 @@ pub fn setup_logger(verbosity: Option<u8>)
         | _3_or_more => base_config.level(log::LevelFilter::Trace),
     };
 
-    let _ = base_config
-        .chain(std::io::stdout())
-        // .chain(fern::log_file("combined.log"))
-        .apply();
+    let _ = base_config.chain(std::io::stdout()).apply();
 }
