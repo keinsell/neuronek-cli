@@ -10,3 +10,7 @@ members = ["cli", "packages/nudb", "packages/nudb-migration"]
 
 [workspace.dependencies]
 libsqlite3-sys = "0.30.1"
+
+[workspace.dev-dependencies]
+assert_cmd = "2.0.1"
+predicates = "2.1.0"

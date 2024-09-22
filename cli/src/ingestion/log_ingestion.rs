@@ -1,3 +1,4 @@
+use crate::humanize::human_date_parser;
 use chrono::DateTime;
 use chrono::Local;
 use clap::Parser;
@@ -26,17 +27,17 @@ pub struct LogIngestion
     pub dosage_unit: String,
     #[arg(short = 'v', long)]
     pub dosage_amount: f64,
-    // Date of ingestion, by default
-    // current date is used if not provided.
-    //
-    // Date can be provided as timestamp and in human-readable format such as
-    // "today 10:00", "yesterday 13:00", "monday 15:34" which will be later
-    // parsed into proper timestamp.
+    /// Date of ingestion, by default current date is used if not provided.
+    ///
+    /// Date can be provided as timestamp and in human-readable format such as
+    /// "today 10:00", "yesterday 13:00", "monday 15:34" which will be later
+    /// parsed into proper timestamp.
     #[arg(
                 short='t',
                 long,
                 default_value_t=Local::now(),
-                default_value=Local::now().to_string()
+                default_value="now",
+    value_parser=human_date_parser,
             )]
     pub ingestion_date: DateTime<Local>,
     // #[arg(short = 'r', long)]

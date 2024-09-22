@@ -1,9 +1,18 @@
 cargo-features = ["edition2024"]
 
 [package]
-name = "neuronek-cli"
+name = "neuronek_cli"
 version = "0.0.1-dev.0"
 edition = "2024"
+
+authors = ["Jakub Olan <keinsell@protonmail.com>"]
+description = "A CLI application for log ingestion"
+license = "MIT"
+repository = "https://github.com/keinsell/neuronek-cli"
+
+[[bin]]
+name = "neuronek"
+path = "src/main.rs"
 
 [dependencies]
 async-std = "1.12.0"
@@ -40,3 +49,14 @@ nudb = { path = "../packages/nudb" }
 rusqlite = "0.32.1"
 tracing = "0.1"
 assert_cmd = "2.0.16"
+predicates = "3.1.2"
+humantime = "2.1.0"
+chrono-humanize = "0.2.3"
+chrono-english = "0.1.7"
+date_time_parser = "0.2.0"
+parse_datetime = "0.6.0"
+serde_json = "1.0.120"
+
+[dev-dependencies]
+assert_cmd = "2.0.8"
+predicates = "3.0.1"
