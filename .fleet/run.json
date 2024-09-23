@@ -1,0 +1,11 @@
+{
+	"configurations": [
+		{
+			"type": "cargo",
+			"name": "Lint",
+			"executableArgs": [
+				"clippy"
+			],
+		},
+	]
+}
