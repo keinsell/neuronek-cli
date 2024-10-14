@@ -14,12 +14,6 @@ use tracing::event;
 use tracing::instrument;
 use tracing::Level;
 
-#[derive(Subcommand)]
-pub enum IngestionCommands
-{
-    Log(LogIngestion),
-}
-
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct LogIngestion
@@ -40,7 +34,7 @@ pub struct LogIngestion
                 long,
                 default_value_t=Local::now(),
                 default_value="now",
-    value_parser=human_date_parser,
+                value_parser=human_date_parser,
             )]
     pub ingestion_date: DateTime<Local>,
     #[clap(short = 'r', long, default_value_t, value_enum)]
@@ -70,16 +64,7 @@ pub async fn log_ingestion(command: &LogIngestion, database_connection: &Databas
     event!(Level::INFO, "Ingestion Logged {:?}", &insert_ingestion);
 
     // Create an Ingestion struct to display
-    let ingestion_to_display = IngestionViewModel {
-        id: insert_ingestion.id,
-        substance_name: insert_ingestion.substance_name,
-        route_of_administration: insert_ingestion.route_of_administration,
-        dosage: insert_ingestion.dosage,
-        notes: insert_ingestion.notes,
-        ingested_at: insert_ingestion.ingested_at,
-        updated_at: insert_ingestion.updated_at,
-        created_at: insert_ingestion.created_at,
-    };
+    let ingestion_to_display = IngestionViewModel::from(&insert_ingestion);
 
     // Create and print the table
     let table = Table::new(vec![ingestion_to_display]);

@@ -1,7 +1,8 @@
+use clap::Subcommand;
 use serde::Deserialize;
 use serde::Serialize;
-
-pub mod ingestion;
+mod ingestion;
+pub mod list_ingestion;
 pub mod log_ingestion;
 
 #[derive(
@@ -29,6 +30,13 @@ impl RouteOfAdministrationClassification
     pub fn serialize(&self) -> String { serde_json::to_string(self).expect("Serialization failed") }
 
     pub fn deserialize(s: &str) -> Self { serde_json::from_str(s).expect("Deserialization failed") }
+}
+
+#[derive(Subcommand)]
+pub enum IngestionCommands
+{
+    Log(log_ingestion::LogIngestion),
+    List(list_ingestion::ListIngestion),
 }
 
 #[cfg(test)]

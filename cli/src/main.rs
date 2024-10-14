@@ -35,6 +35,7 @@ struct CommandLineInterface
 enum Commands
 {
     LogIngestion(ingestion::log_ingestion::LogIngestion),
+    ListIngestion(ingestion::list_ingestion::ListIngestion),
     /// does testing things
     Test
     {
@@ -91,8 +92,11 @@ fn main()
     {
         | Some(Commands::LogIngestion(command)) =>
         {
-            task::block_on(log_ingestion(command, &db_connection))
+            task::block_on(log_ingestion(command, db_connection))
         }
+        | Some(Commands::ListIngestion(command)) => task::block_on(
+            ingestion::list_ingestion::ListIngestion::handle(command, db_connection),
+        ),
         | None => println!("No command provided"),
         | _ => println!("No command provided"),
     }
