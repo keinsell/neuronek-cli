@@ -1,6 +1,9 @@
 use clap::Parser;
+use nudb_migration::sea_orm::ColumnTrait;
 use nudb_migration::sea_orm::DatabaseConnection;
 use nudb_migration::sea_orm::EntityTrait;
+use nudb_migration::sea_orm::QueryFilter;
+use nudb_migration::sea_orm::QueryTrait;
 use tabled::Table;
 use tracing::instrument;
 use tracing::Level;
@@ -24,14 +27,12 @@ pub struct ListIngestion
 impl ListIngestion
 {
     #[instrument(name="list_ingestion", level = Level::DEBUG)]
-    pub async fn handle(command: &Self, database_connection: &DatabaseConnection) -> ()
+    pub async fn handle(&self, database_connection: &DatabaseConnection) -> ()
     {
-        dbg!(
-            "This should retrive information about ingestions in database {:?}",
-            command
-        );
-
         let ingestions = nudb::ingestion::Entity::find()
+            .apply_if(self.substance_name.clone(), |query, v| {
+                query.filter(nudb::ingestion::Column::SubstanceName.eq(v.clone()))
+            })
             .all(database_connection)
             .await
             .unwrap();
