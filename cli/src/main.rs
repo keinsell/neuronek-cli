@@ -1,5 +1,4 @@
 use crate::database::DATABASE_CONNECTION;
-use crate::ingestion::log_ingestion::log_ingestion;
 use crate::settings::ensure_xdg_directories;
 use async_std::task;
 use clap::Parser;
@@ -90,10 +89,9 @@ fn main()
 
     match &cli.command
     {
-        | Some(Commands::LogIngestion(command)) =>
-        {
-            task::block_on(log_ingestion(command, db_connection))
-        }
+        | Some(Commands::LogIngestion(command)) => task::block_on(
+            ingestion::log_ingestion::LogIngestion::handle(command, db_connection),
+        ),
         | Some(Commands::ListIngestion(command)) => task::block_on(
             ingestion::list_ingestion::ListIngestion::handle(command, db_connection),
         ),

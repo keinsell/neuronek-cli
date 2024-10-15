@@ -1,11 +1,9 @@
 use crate::humanize::human_date_parser;
 use crate::ingestion::ingestion::IngestionViewModel;
 use crate::ingestion::RouteOfAdministrationClassification;
-use assert_cmd::Command;
 use chrono::DateTime;
 use chrono::Local;
 use clap::Parser;
-use clap::Subcommand;
 use nudb_migration::sea_orm::ActiveValue;
 use nudb_migration::sea_orm::DatabaseConnection;
 use nudb_migration::sea_orm::EntityTrait;
@@ -41,59 +39,68 @@ pub struct LogIngestion
     pub route_of_administration: RouteOfAdministrationClassification,
 }
 
-#[instrument(name = "log_ingestion", level = Level::INFO)]
-pub async fn log_ingestion(command: &LogIngestion, database_connection: &DatabaseConnection)
+impl LogIngestion
 {
-    dbg!("This should log ingestion {:?}", command);
+    #[instrument(name = "log_ingestion", level = Level::INFO)]
+    pub async fn handle(command: &Self, database_connection: &DatabaseConnection)
+    {
+        dbg!("This should log ingestion {:?}", command);
 
-    let insert_ingestion = nudb::ingestion::Entity::insert(nudb::ingestion::ActiveModel {
-        id: ActiveValue::default(),
-        substance_name: ActiveValue::Set(command.substance_name.to_lowercase()),
-        route_of_administration: ActiveValue::Set(command.route_of_administration.serialize()),
-        // TODO: Dodac parsowanie unitow masy i zapisywac informacje w kilogramach, output do uzytkownika powinien byc automatycznie skracany np. 0.0001 do mg czy g.
-        dosage: ActiveValue::Set(command.dosage_amount as f32),
-        notes: ActiveValue::NotSet,
-        ingested_at: ActiveValue::Set(command.ingestion_date.naive_local()),
-        updated_at: ActiveValue::Set(Local::now().naive_local()),
-        created_at: ActiveValue::Set(Local::now().naive_local()),
-    })
-    .exec_with_returning(database_connection)
-    .await
-    .unwrap();
+        let insert_ingestion = nudb::ingestion::Entity::insert(nudb::ingestion::ActiveModel {
+            id: ActiveValue::default(),
+            substance_name: ActiveValue::Set(command.substance_name.to_lowercase()),
+            route_of_administration: ActiveValue::Set(command.route_of_administration.serialize()),
+            // TODO: Dodac parsowanie unitow masy i zapisywac informacje w kilogramach, output do uzytkownika powinien byc automatycznie skracany np. 0.0001 do mg czy g.
+            dosage: ActiveValue::Set(command.dosage_amount as f32),
+            notes: ActiveValue::NotSet,
+            ingested_at: ActiveValue::Set(command.ingestion_date.naive_local()),
+            updated_at: ActiveValue::Set(Local::now().naive_local()),
+            created_at: ActiveValue::Set(Local::now().naive_local()),
+        })
+        .exec_with_returning(database_connection)
+        .await
+        .unwrap();
 
-    event!(Level::INFO, "Ingestion Logged {:?}", &insert_ingestion);
+        event!(Level::INFO, "Ingestion Logged {:?}", &insert_ingestion);
 
-    // Create an Ingestion struct to display
-    let ingestion_to_display = IngestionViewModel::from(&insert_ingestion);
+        // Create an Ingestion struct to display
+        let ingestion_to_display = IngestionViewModel::from(&insert_ingestion);
 
-    // Create and print the table
-    let table = Table::new(vec![ingestion_to_display]);
-    println!("{}", table);
+        // Create and print the table
+        let table = Table::new(vec![ingestion_to_display]);
+        println!("{}", table);
+    }
 }
 
-#[test]
-fn should_log_ingestion() -> Result<(), Box<dyn std::error::Error>>
+mod test
 {
-    let mut cmd = Command::cargo_bin("neuronek")?;
+    use assert_cmd::Command;
+    use chrono::Local;
 
-    let substance_name = "Aspirin";
-    let ingestion_date = Local::now().to_string();
+    #[test]
+    fn should_log_ingestion() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut cmd = Command::cargo_bin("neuronek")?;
 
-    cmd.arg("log-ingestion")
-        .arg("-s")
-        .arg(substance_name)
-        .arg("-v")
-        .arg("500")
-        .arg("-u")
-        .arg("mg")
-        .arg("-t")
-        .arg(&ingestion_date);
+        let substance_name = "Aspirin";
+        let ingestion_date = Local::now().to_string();
 
-    // Simulate `neuronek` command and ensure it succeeds
-    cmd.assert()
-        .success()
-        .to_string()
-        .contains("Ingestion Logged");
+        cmd.arg("log-ingestion")
+            .arg("-s")
+            .arg(substance_name)
+            .arg("-v")
+            .arg("500")
+            .arg("-u")
+            .arg("mg")
+            .arg("-t")
+            .arg(&ingestion_date);
 
-    Ok(())
+        // Simulate `neuronek` command and ensure it succeeds
+        cmd.assert()
+            .success()
+            .to_string()
+            .contains("Ingestion Logged");
+
+        Ok(())
+    }
 }
