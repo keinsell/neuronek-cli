@@ -9,3 +9,16 @@ cross-platform comparing to cli application in main repository.
 
 If the experiments in this repository will be successful code will become upstream and will be available as git
 submodule in the main repository.
+
+## Introduction
+
+### Building Application
+
+Building production release was desinged and persisted in `.justfile` which contains build setups and configurations
+for different plaforms, `just release` will execute all of them.
+
+```bash
+just release
+```
+
+For `x86_64-unknown-linux-musl` we create self-extracting archive which is available under `dist/neuronek-*.run`, you can run this file locally to install application into your linux operating system.Platforms other than linux are not yet supported but are planned to be released as soon as build process of repository will be clarified and distribution channels will be estabilished.

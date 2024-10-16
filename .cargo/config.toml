@@ -1,0 +1,24 @@
+# [unstable]
+# build-std = ["core", "compiler_builtins", "alloc"]
+# build-std-features = ["compiler-builtins-mem"]
+
+#[target.x86_64-unknown-linux-gnu]
+#rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[target.x86_64-unknown-linux-musl]
+linker = "clang"
+rustflags = [
+    "-C",
+    "link-arg=-fuse-ld=mold",
+    "-C",
+    "link-arg=--target=x86_64-unknown-linux-musl",
+]
+
+[target.aarch64-unknown-linux-musl]
+linker = "clang"
+rustflags = [
+    "-C",
+    "link-arg=-fuse-ld=mold",
+    "-C",
+    "link-arg=--target=aarch64-unknown-linux-musl",
+]
