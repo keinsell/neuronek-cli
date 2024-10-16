@@ -1,6 +1,6 @@
 use crate::humanize::human_date_parser;
-use crate::ingestion::ingestion::IngestionViewModel;
 use crate::ingestion::RouteOfAdministrationClassification;
+use crate::ingestion::ingestion::IngestionViewModel;
 use chrono::DateTime;
 use chrono::Local;
 use clap::Parser;
@@ -8,9 +8,9 @@ use nudb_migration::sea_orm::ActiveValue;
 use nudb_migration::sea_orm::DatabaseConnection;
 use nudb_migration::sea_orm::EntityTrait;
 use tabled::Table;
+use tracing::Level;
 use tracing::event;
 use tracing::instrument;
-use tracing::Level;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]

@@ -12,6 +12,8 @@ path = "src/lib.rs"
 async-std = { version = "1", features = ["attributes", "tokio1"] }
 chrono = "*"
 sea-orm = { version = "1.1.0-rc.1", features = ["sqlx-sqlite", "runtime-async-std-native-tls", "macros", "mock", "with-chrono"] }
+openssl = { version = "0.10", features = ["vendored"] }
+
 [dependencies.sea-orm-migration]
 version = "1.1.0-rc.1"
 features = [

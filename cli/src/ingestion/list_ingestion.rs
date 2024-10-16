@@ -5,8 +5,8 @@ use nudb_migration::sea_orm::EntityTrait;
 use nudb_migration::sea_orm::QueryFilter;
 use nudb_migration::sea_orm::QueryTrait;
 use tabled::Table;
-use tracing::instrument;
 use tracing::Level;
+use tracing::instrument;
 
 use crate::ingestion::ingestion::IngestionViewModel;
 

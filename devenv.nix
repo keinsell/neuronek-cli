@@ -27,6 +27,7 @@
   # https://devenv.sh/packages/
   packages = with pkgs; [
     git
+    rustup
     openssl
     onefetch
     direnv
@@ -38,19 +39,22 @@
     cargo-chef
     cargo-vet
     cargo-make
+    cargo-cross
+    docker        
+    nerdctl
     rustfilt
     sqlite
   ];
 
   # https://devenv.sh/languages/
   languages = {
-    rust = {
-      enable = true;
-      channel = "nightly";
-      rustflags = "-Z threads=0";
-      mold.enable = true;
-      components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" "rust-src" "llvm-tools" "rust-docs" ];
-    };
+    # rust = {
+    #   enable = true;
+    #   channel = "nightly";
+    #   rustflags = "-Z threads=0";
+    #   mold.enable = true;
+    #   components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" "rust-src" "llvm-tools" "rust-docs" ];
+    # };
   };
 
   # https://devenv.sh/processes/

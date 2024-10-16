@@ -22,3 +22,4 @@ sea-orm = { version = "1.1.0-rc.1", features = [
 ] }
 async-std = { version = "1", features = ["attributes", "tokio1"] }
 nudb_migration = { path = "../nudb-migration" }
+openssl = { version = "0.10", features = ["vendored"] }
