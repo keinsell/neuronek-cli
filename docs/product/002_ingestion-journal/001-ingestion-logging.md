@@ -12,3 +12,10 @@ Dosage: [###--] Common (100mg)
 Duration: [#-----] 4 hours left (Onset for 30m) 
 ------------------
 ```
+
+- [TC] Application must allow to log ingestion that happened now
+- [TC] Application must allow to log ingestion that will happen in future
+- [TC] Application must allow to log ingestion that happened in past
+- [TC] Application must allow to use different dosage units
+- [TC] Application must allow to use different dosage amounts
+- [TC] Application must allow 
