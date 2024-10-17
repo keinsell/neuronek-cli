@@ -1,22 +1,25 @@
 VERSION 0.8
 IMPORT github.com/earthly/lib/rust:3.0.1 AS rust
 
-FROM rust:slim-bookworm
-WORKDIR /rustexample
+FROM rustlang/rust:nightly
 
-# build creates the binary target/release/example-rust
+# Install dependencies that are used across jobs
+DO rust+INIT --keep_fingerprints=true
+DO rust+SET_CACHE_MOUNTS_ENV
+DO rust+CARGO --args="install cargo-binstall"
+
+WORKDIR /tmp
+
+build-all:
+  BUILD --platform=linux/amd64 +build
+  
 build:
-    # CARGO function adds caching to cargo runs.
-    # See https://github.com/earthly/lib/tree/main/rust
-    DO rust+INIT --keep_fingerprints=true
-    COPY --keep-ts --dir src Cargo.lock Cargo.toml .
+    COPY --keep-ts --dir src packages Cargo.lock Cargo.toml .
     DO rust+CARGO --args="build --release --bin neuronek" --output="release/[^/\.]+"
     SAVE ARTIFACT target/release/neuronek neuronek
 
-# docker creates docker image earthly/examples:rust
 docker:
-    FROM debian:bookworm-slim
+    FROM registry.suse.com/bci/bci-micro:15.5
     COPY +build/neuronek neuronek
-    EXPOSE 9091
     ENTRYPOINT ["./neuronek"]
     SAVE IMAGE --push neuronek/cli:dev
