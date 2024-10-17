@@ -91,7 +91,8 @@
       upx
       candle
       dotnet-sdk
-      dotnet-runtime              ];
+      dotnet-runtime              
+      ];
 
   # https://devenv.sh/languages/
   languages = {

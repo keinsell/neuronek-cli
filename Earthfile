@@ -1,9 +1,9 @@
 VERSION --global-cache 0.8
+PROJECT keinsell/neuronek-cli
 IMPORT github.com/earthly/lib/rust:3.0.1 AS rust
 
 install:
   FROM rustlang/rust:nightly
-  RUN rustup component add clippy rustfmt
   DO rust+INIT --keep_fingerprints=true
   DO rust+SET_CACHE_MOUNTS_ENV
   DO rust+CARGO --args="install cargo-binstall"
@@ -14,15 +14,19 @@ source:
     WORKDIR /tmp
     COPY --keep-ts --dir src packages Cargo.lock Cargo.toml .
 
-# lint:
-#   FROM +source
-#   DO rust+CARGO --args="clippy --all-features --all-targets -- -D warnings"
+lint:
+   FROM +source
+   RUN rustup component add clippy
+   DO rust+CARGO --args="clippy --all-features --all-targets -- -D warnings"
 
-# fmt:
-#   FROM +lint
-#   DO rust+CARGO --args="fmt --check"
+fmt:
+  FROM +lint
+  RUN rustup component add rustfmt
+  DO rust+CARGO --args="fmt --check"
 
-# test:
+test:
+    FROM +source
+    DO rust+CARGO --args="test"
 
 build:
     FROM +source
@@ -42,8 +46,10 @@ build-darwin-x86:
     DO rust+CARGO --args="build --release --target x86_64-apple-darwin"
 
 all:
-    BUILD +build
+    # BUILD +lint
     # BUILD +fmt
+    BUILD +build
+    BUILD +test
 
 docker:
     FROM registry.suse.com/bci/bci-micro:15.5

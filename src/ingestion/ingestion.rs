@@ -7,6 +7,8 @@ use chrono::TimeZone;
 use chrono_humanize::HumanTime;
 use tabled::Tabled;
 
+pub(super) type Entity = nudb::ingestion::Model;
+
 #[derive(Tabled, Debug, Clone)]
 pub struct IngestionViewModel
 {
@@ -24,9 +26,9 @@ pub struct IngestionViewModel
     pub(crate) created_at: chrono::NaiveDateTime,
 }
 
-impl From<&nudb::ingestion::Model> for IngestionViewModel
+impl From<&Entity> for IngestionViewModel
 {
-    fn from(value: &nudb::ingestion::Model) -> Self
+    fn from(value: &Entity) -> Self
     {
         IngestionViewModel {
             id: value.id,

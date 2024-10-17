@@ -5,8 +5,8 @@ use nudb_migration::sea_orm::EntityTrait;
 use nudb_migration::sea_orm::QueryFilter;
 use nudb_migration::sea_orm::QueryTrait;
 use tabled::Table;
-use tracing::Level;
 use tracing::instrument;
+use tracing::Level;
 
 use crate::ingestion::ingestion::IngestionViewModel;
 
@@ -40,9 +40,6 @@ impl ListIngestion
         let view_models: Vec<IngestionViewModel> =
             ingestions.iter().map(IngestionViewModel::from).collect();
 
-        dbg!(&view_models);
-
-        let table = Table::new(view_models);
-        println!("{}", table)
+        println!("{}", Table::new(view_models));
     }
 }

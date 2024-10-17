@@ -1,6 +1,6 @@
 use crate::humanize::human_date_parser;
-use crate::ingestion::RouteOfAdministrationClassification;
 use crate::ingestion::ingestion::IngestionViewModel;
+use crate::ingestion::RouteOfAdministrationClassification;
 use chrono::DateTime;
 use chrono::Local;
 use clap::Parser;
@@ -8,9 +8,9 @@ use nudb_migration::sea_orm::ActiveValue;
 use nudb_migration::sea_orm::DatabaseConnection;
 use nudb_migration::sea_orm::EntityTrait;
 use tabled::Table;
-use tracing::Level;
 use tracing::event;
 use tracing::instrument;
+use tracing::Level;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -42,18 +42,16 @@ pub struct LogIngestion
 impl LogIngestion
 {
     #[instrument(name = "log_ingestion", level = Level::INFO)]
-    pub async fn handle(command: &Self, database_connection: &DatabaseConnection)
+    pub async fn handle(&self, database_connection: &DatabaseConnection)
     {
-        dbg!("This should log ingestion {:?}", command);
-
         let insert_ingestion = nudb::ingestion::Entity::insert(nudb::ingestion::ActiveModel {
             id: ActiveValue::default(),
-            substance_name: ActiveValue::Set(command.substance_name.to_lowercase()),
-            route_of_administration: ActiveValue::Set(command.route_of_administration.serialize()),
+            substance_name: ActiveValue::Set(self.substance_name.to_lowercase()),
+            route_of_administration: ActiveValue::Set(self.route_of_administration.serialize()),
             // TODO: Dodac parsowanie unitow masy i zapisywac informacje w kilogramach, output do uzytkownika powinien byc automatycznie skracany np. 0.0001 do mg czy g.
-            dosage: ActiveValue::Set(command.dosage_amount as f32),
+            dosage: ActiveValue::Set(self.dosage_amount as f32),
             notes: ActiveValue::NotSet,
-            ingested_at: ActiveValue::Set(command.ingestion_date.naive_local()),
+            ingested_at: ActiveValue::Set(self.ingestion_date.naive_local()),
             updated_at: ActiveValue::Set(Local::now().naive_local()),
             created_at: ActiveValue::Set(Local::now().naive_local()),
         })
@@ -66,14 +64,16 @@ impl LogIngestion
         // Create an Ingestion struct to display
         let ingestion_to_display = IngestionViewModel::from(&insert_ingestion);
 
-        // Create and print the table
         let table = Table::new(vec![ingestion_to_display]);
         println!("{}", table);
     }
 }
 
+#[cfg(test)]
 mod test
 {
+    use assert_cmd::Command;
+    use chrono::Local;
 
     #[test]
     fn should_log_ingestion() -> Result<(), Box<dyn std::error::Error>>

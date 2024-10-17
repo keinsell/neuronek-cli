@@ -27,9 +27,9 @@ pub enum RouteOfAdministrationClassification
 
 impl RouteOfAdministrationClassification
 {
-    pub fn serialize(&self) -> String { serde_json::to_string(self).expect("Serialization failed") }
-
     pub fn deserialize(s: &str) -> Self { serde_json::from_str(s).expect("Deserialization failed") }
+
+    pub fn serialize(&self) -> String { serde_json::to_string(self).expect("Serialization failed") }
 }
 
 #[derive(Subcommand)]

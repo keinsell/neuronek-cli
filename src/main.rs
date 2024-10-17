@@ -13,16 +13,14 @@ mod ingestion;
 mod logger;
 mod settings;
 
-/// Top-level interface definitiion for Neuronek
 #[derive(Parser)]
 #[command(
-    version = "0.0.1-dev",
+    version = env!("CARGO_PKG_VERSION"),
     about = "Dosage journal that knows!",
     long_about = "🧬 Intelligent dosage tracker application with purpose to monitor supplements, nootropics and psychoactive substances along with their long-term influence on one's mind and body."
 )]
 struct CommandLineInterface
 {
-    /// Enable debugging (verbose) information
     #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count, default_value_t=0)]
     verbosity: u8,
 
@@ -35,67 +33,52 @@ enum Commands
 {
     LogIngestion(ingestion::log_ingestion::LogIngestion),
     ListIngestion(ingestion::list_ingestion::ListIngestion),
-    /// does testing things
-    Test
-    {
-        /// lists test values
-        #[arg(short, long)]
-        list: bool,
-    },
 }
 
 fn main()
 {
-    let cli = CommandLineInterface::parse();
-
-    // TODO(1): Setup Application Environment
-    // TODO(1.1): Setup logger
-    logger::setup_logger(Some(cli.verbosity));
-    // TODO(1.2): Setup rendering panics with miette for more informative and pretty panics.
+    // #exception #panic
+    // Initialize miette's custom panic hook, so any panics in this program
+    // will be displayed with enhanced, readable formatting.
+    // This should be set as early as possible, ideally at the start of the program,
+    // to ensure that any panics that occur will be formatted by miette.
     set_panic_hook();
     ensure_xdg_directories().expect("XDG Directories could not been created");
+
+    let cli = CommandLineInterface::parse();
+
+    logger::setup_logger(Some(cli.verbosity));
+
     // TODO(1.3): Setup tracing and telemetry
     // TODO(1.4): Parse and load configuration
     // TODO(1.5): Create, Migrate or Load database
 
-    // TODO(2.0): Setup Database Connection
+    // #database
     let db_connection = &DATABASE_CONNECTION;
 
-    // TODO(2.1): Setup Migration and Ensure Database is up to date
-    let handle_migration = async_std::task::spawn(async {
+    // #database #database-migration
+    async_std::task::block_on(async {
         let pending_migrations = nudb_migration::Migrator::get_pending_migrations(
             &db_connection.into_schema_manager_connection(),
         )
         .await
-        .unwrap_or_else(|err| {
-            println!("Failed to read pending migrations");
-            panic!("{}", err)
-        });
+        .expect("Failed to read pending migrations");
 
         if !pending_migrations.is_empty()
         {
             println!("There are {} migrations pending.", pending_migrations.len());
-            // TODO(2.2): Do prejudicial backup of data
+            // TODO: Do prejudicial backup of data
             println!("Applying migrations...");
             nudb_migration::Migrator::up(db_connection.into_schema_manager_connection(), None)
                 .await
-                .unwrap();
+                .expect("Failed to apply migrations");
         }
-    });
-
-    async_std::task::block_on(async {
-        handle_migration.await;
     });
 
     match &cli.command
     {
-        | Some(Commands::LogIngestion(command)) => task::block_on(
-            ingestion::log_ingestion::LogIngestion::handle(command, db_connection),
-        ),
-        | Some(Commands::ListIngestion(command)) => task::block_on(
-            ingestion::list_ingestion::ListIngestion::handle(command, db_connection),
-        ),
-        | None => println!("No command provided"),
+        | Some(Commands::LogIngestion(command)) => task::block_on(command.handle(db_connection)),
+        | Some(Commands::ListIngestion(command)) => task::block_on(command.handle(db_connection)),
         | _ => println!("No command provided"),
     }
 }

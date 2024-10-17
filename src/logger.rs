@@ -4,10 +4,10 @@ pub fn setup_logger(verbosity: Option<u8>)
 
     base_config = match verbosity
     {
-        | Some(0) => base_config.level(log::LevelFilter::Info),
+        | Some(0) => base_config.level(log::LevelFilter::Warn),
         | Some(1) => base_config.level(log::LevelFilter::Debug),
         | Some(2) => base_config.level(log::LevelFilter::Debug),
-        | None => base_config.level(log::LevelFilter::Info),
+        | None => base_config.level(log::LevelFilter::Warn),
         | _3_or_more => base_config.level(log::LevelFilter::Trace),
     };
 
