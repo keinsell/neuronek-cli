@@ -74,8 +74,6 @@ impl LogIngestion
 
 mod test
 {
-    use assert_cmd::Command;
-    use chrono::Local;
 
     #[test]
     fn should_log_ingestion() -> Result<(), Box<dyn std::error::Error>>

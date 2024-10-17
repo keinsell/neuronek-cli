@@ -14,7 +14,7 @@ pub fn human_date_parser(s: &str) -> Result<DateTime<Local>, String>
             }
             else
             {
-                DateTime::from(now)
+                now
             }
         })
 }

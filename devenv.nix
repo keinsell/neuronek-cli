@@ -16,7 +16,6 @@
     RUSTC_WRAPPER = "sccache";
     RUST_BACKTRACE = "full";
     LIBCLANG_PATH= pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
-    
     CARGO_LOG = "warn";
     SCCACHE_LOG = "warn";
     PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
@@ -65,8 +64,11 @@
     cargo-bundle
     cargo-cranky
     cargo-msrv      
-                docker        
+    cargo-zigbuild
+    cargo-nextest
+    cargo-dist
     nerdctl
+    earthly
     pkg-config
     rustfilt
     sqlite
@@ -89,12 +91,15 @@
     rust = {
       enable = true;
       channel = "nightly";
-      rustflags = "-Z threads=0";
       mold.enable = true;
       components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" "rust-src" "llvm-tools" "rust-docs" ];
       targets = [
       "x86_64-unknown-linux-gnu"
       "x86_64-pc-windows-gnu"
+      "x86_64-apple-darwin"
+      "x86_64-unknown-linux-musl"
+      "aarch64-apple-darwin"
+      "aarch64-unknown-linux-musl"
       ];
     };
     zig = {
