@@ -49,12 +49,12 @@ Duration: [#-----] 4 hours left (Onset for 30m)
 
 - `log_ingestion` require information about `substance`, `dosage`, `administration_date` (defaults to `now`) and `route_of_administration` (defaults to `oral`)
 - `log_ingestion` may contain `notes` which allow user to describe ingestion.
-- 
+- `log_ingestion` must return created data after creation with `pretty`-format
 
+## Test Cases
 
 - [TC] Application must allow to log ingestion that happened now
 - [TC] Application must allow to log ingestion that will happen in future
 - [TC] Application must allow to log ingestion that happened in past
 - [TC] Application must allow to use different dosage units
 - [TC] Application must allow to use different dosage amounts
-- [TC] Application must allow 
