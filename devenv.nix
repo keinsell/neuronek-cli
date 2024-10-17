@@ -4,14 +4,35 @@
 , inputs
 , ...
 }:
+  let libPath = with pkgs; lib.makeLibraryPath [
+    sqlite
+    openssl
+  ];
+  in
 {
   # https://devenv.sh/basics/
   env = {
     PROJECT = "neuronek-cli";
     RUSTC_WRAPPER = "sccache";
     RUST_BACKTRACE = "full";
+    LIBCLANG_PATH= pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
+    
     CARGO_LOG = "warn";
     SCCACHE_LOG = "warn";
+    PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+    LD_LIBRARY_PATH = libPath;
+        BINDGEN_EXTRA_CLANG_ARGS =
+    # Includes with normal include path
+    (builtins.map (a: ''-I"${a}/include"'') [
+      pkgs.libvmi
+      pkgs.glibc.dev
+    ])
+    # Includes with special directory paths
+    ++ [
+      ''-I"${pkgs.llvmPackages_latest.libclang.lib}/lib/clang/${pkgs.llvmPackages_latest.libclang.version}/include"''
+      ''-I"${pkgs.glib.dev}/include/glib-2.0"''
+      ''-I${pkgs.glib.out}/lib/glib-2.0/include/''
+    ];
   };
 
   dotenv = {
@@ -40,21 +61,45 @@
     cargo-vet
     cargo-make
     cargo-cross
-    docker        
+    cargo-binstall
+    cargo-bundle
+    cargo-cranky
+    cargo-msrv      
+                docker        
     nerdctl
+    pkg-config
     rustfilt
     sqlite
-  ];
+    llvmPackages.bintools
+          llvmPackages_latest.llvm
+      llvmPackages_latest.bintools
+      zlib.out
+      rustup
+      xorriso
+      grub2
+      qemu
+      llvmPackages_latest.lld
+      python3
+      makeself
+      upx
+          ];
 
   # https://devenv.sh/languages/
   languages = {
-    # rust = {
-    #   enable = true;
-    #   channel = "nightly";
-    #   rustflags = "-Z threads=0";
-    #   mold.enable = true;
-    #   components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" "rust-src" "llvm-tools" "rust-docs" ];
-    # };
+    rust = {
+      enable = true;
+      channel = "nightly";
+      rustflags = "-Z threads=0";
+      mold.enable = true;
+      components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" "rust-src" "llvm-tools" "rust-docs" ];
+      targets = [
+      "x86_64-unknown-linux-gnu"
+      "x86_64-pc-windows-gnu"
+      ];
+    };
+    zig = {
+      enable = true;
+    };
   };
 
   # https://devenv.sh/processes/
