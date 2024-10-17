@@ -20,7 +20,7 @@
     SCCACHE_LOG = "warn";
     PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
     LD_LIBRARY_PATH = libPath;
-        BINDGEN_EXTRA_CLANG_ARGS =
+    BINDGEN_EXTRA_CLANG_ARGS =
     # Includes with normal include path
     (builtins.map (a: ''-I"${a}/include"'') [
       pkgs.libvmi
@@ -63,10 +63,12 @@
     cargo-binstall
     cargo-bundle
     cargo-cranky
-    cargo-msrv      
+    cargo-msrv
     cargo-zigbuild
     cargo-nextest
     cargo-dist
+    cargo-xwin
+    cargo-xbuild
     nerdctl
     earthly
     pkg-config
@@ -92,14 +94,16 @@
       enable = true;
       channel = "nightly";
       mold.enable = true;
-      components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" "rust-src" "llvm-tools" "rust-docs" ];
+      components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" "rust-src" "llvm-tools" "rust-docs" "llvm-tools-preview" ];
       targets = [
       "x86_64-unknown-linux-gnu"
-      "x86_64-pc-windows-gnu"
-      "x86_64-apple-darwin"
       "x86_64-unknown-linux-musl"
+      "x86_64-pc-windows-gnu"
+      "x86_64-pc-windows-msvc"
+      "x86_64-apple-darwin"
       "aarch64-apple-darwin"
       "aarch64-unknown-linux-musl"
+      "aarch64-pc-windows-msvc"
       ];
     };
     zig = {
