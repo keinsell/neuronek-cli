@@ -10,9 +10,9 @@ use tracing::Level;
 
 use crate::ingestion::ingestion::IngestionViewModel;
 
-/// Retrive and list ingestions from database, this feature includes functionality
-/// of filtering and piping output to different fromats such as listing ingestions
-/// out in json so they can be used in differnt program or imprted into different
+/// Retrieve and list ingestion from database, this feature includes functionality
+/// of filtering and piping output to different formats such as listing ingestion
+/// out in json so they can be used in different program or imported into different
 /// places. All of this have sane default which allow using command without additional
 /// setup or things like that.
 

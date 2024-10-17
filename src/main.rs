@@ -1,12 +1,16 @@
+#![feature(error_reporter, async_fn_traits)]
+
 use crate::database::DATABASE_CONNECTION;
 use crate::settings::ensure_xdg_directories;
 use async_std::task;
 use clap::Parser;
 use clap::Subcommand;
+use command::Command;
 use miette::set_panic_hook;
 use nudb_migration::IntoSchemaManagerConnection;
 use nudb_migration::MigratorTrait;
 
+mod command;
 mod database;
 mod humanize;
 mod ingestion;
@@ -77,7 +81,10 @@ fn main()
 
     match &cli.command
     {
-        | Some(Commands::LogIngestion(command)) => task::block_on(command.handle(db_connection)),
+        | Some(Commands::LogIngestion(log_ingestion)) =>
+        {
+            log_ingestion.handle(db_connection).unwrap()
+        }
         | Some(Commands::ListIngestion(command)) => task::block_on(command.handle(db_connection)),
         | _ => println!("No command provided"),
     }

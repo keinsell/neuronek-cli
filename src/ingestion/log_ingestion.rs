@@ -1,9 +1,12 @@
+use crate::command::Command;
 use crate::humanize::human_date_parser;
 use crate::ingestion::ingestion::IngestionViewModel;
 use crate::ingestion::RouteOfAdministrationClassification;
+use async_std::task;
 use chrono::DateTime;
 use chrono::Local;
 use clap::Parser;
+use miette::Error;
 use nudb_migration::sea_orm::ActiveValue;
 use nudb_migration::sea_orm::DatabaseConnection;
 use nudb_migration::sea_orm::EntityTrait;
@@ -39,33 +42,32 @@ pub struct LogIngestion
     pub route_of_administration: RouteOfAdministrationClassification,
 }
 
-impl LogIngestion
+impl Command for LogIngestion
 {
     #[instrument(name = "log_ingestion", level = Level::INFO)]
-    pub async fn handle(&self, database_connection: &DatabaseConnection)
+    fn handle(&self, database_connection: &DatabaseConnection) -> Result<(), Error>
     {
-        let insert_ingestion = nudb::ingestion::Entity::insert(nudb::ingestion::ActiveModel {
-            id: ActiveValue::default(),
-            substance_name: ActiveValue::Set(self.substance_name.to_lowercase()),
-            route_of_administration: ActiveValue::Set(self.route_of_administration.serialize()),
-            // TODO: Dodac parsowanie unitow masy i zapisywac informacje w kilogramach, output do uzytkownika powinien byc automatycznie skracany np. 0.0001 do mg czy g.
-            dosage: ActiveValue::Set(self.dosage_amount as f32),
-            notes: ActiveValue::NotSet,
-            ingested_at: ActiveValue::Set(self.ingestion_date.naive_local()),
-            updated_at: ActiveValue::Set(Local::now().naive_local()),
-            created_at: ActiveValue::Set(Local::now().naive_local()),
-        })
-        .exec_with_returning(database_connection)
-        .await
-        .unwrap();
+        let ingestion = task::block_on(async {
+            nudb::ingestion::Entity::insert(nudb::ingestion::ActiveModel {
+                id: ActiveValue::default(),
+                substance_name: ActiveValue::Set(self.substance_name.to_lowercase()),
+                route_of_administration: ActiveValue::Set(self.route_of_administration.serialize()),
+                // TODO: Dodac parsowanie unitow masy i zapisywac informacje w kilogramach, output do uzytkownika powinien byc automatycznie skracany np. 0.0001 do mg czy g.
+                dosage: ActiveValue::Set(self.dosage_amount as f32),
+                notes: ActiveValue::NotSet,
+                ingested_at: ActiveValue::Set(self.ingestion_date.naive_local()),
+                updated_at: ActiveValue::Set(Local::now().naive_local()),
+                created_at: ActiveValue::Set(Local::now().naive_local()),
+            })
+            .exec_with_returning(database_connection)
+            .await
+            .unwrap()
+        });
 
-        event!(Level::INFO, "Ingestion Logged {:?}", &insert_ingestion);
+        event!(Level::INFO, "Ingestion Logged {:?}", &ingestion);
+        println!("{}", Table::new(vec![IngestionViewModel::from(&ingestion)]));
 
-        // Create an Ingestion struct to display
-        let ingestion_to_display = IngestionViewModel::from(&insert_ingestion);
-
-        let table = Table::new(vec![ingestion_to_display]);
-        println!("{}", table);
+        Ok(())
     }
 }
 
