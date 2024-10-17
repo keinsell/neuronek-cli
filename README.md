@@ -21,4 +21,4 @@ for different plaforms, `just release` will execute all of them.
 just release
 ```
 
-For `x86_64-unknown-linux-gnu` we create self-extracting archive which is available under `dist/neuronek.run`
+For `x86_64-unknown-linux-musl` we create self-extracting archive which is available under `dist/neuronek-*.run`, you can run this file locally to install application into your linux operating system.Platforms other than linux are not yet supported but are planned to be released as soon as build process of repository will be clarified and distribution channels will be estabilished.

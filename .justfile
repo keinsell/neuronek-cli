@@ -18,9 +18,23 @@ build-target target:
     # toolkit by default
     cargo zigbuild --bin=neuronek --target={{target}} --release
 
+build-darwin-x64:
+    cargo zigbuild --bin=neuronek --target="x86_64-apple-darwin" --release
+#    docker run --rm -it -v $(pwd):/io -w /io messense/cargo-zigbuild cargo zigbuild --release --target x86_64-apple-darwin
+
+build-windows-x64:
+    cargo xwin build --bin=neuronek --target="x86_64-pc-windows-msvc" --release
+
+build-linux-amd64:
+    cargo zigbuild --bin=neuronek --target="x86_64-unknown-linux-musl" --release
+    just package-makeself x86_64-unknown-linux-musl
+
+build-docker:
+    @echo "Add Dockerfile which will run tool and will operate on Unikernel or Distroless"
+    
 # Prepare release binaries for all platforms
-@release: (build-target "x86_64-unknown-linux-gnu") (package-makeself "x86_64-unknown-linux-gnu") (build-target "x86_64-pc-windows-gnu") (build-target "aarch64-unknown-linux-musl")
-@package: (package-makeself "x86_64-unknown-linux-gnu")
+@release: (build-target "x86_64-unknown-linux-gnu") (package-sea "x86_64-unknown-linux-gnu") (build-target "x86_64-pc-windows-gnu") (build-target "aarch64-unknown-linux-musl")
+@package: (package-sea "x86_64-unknown-linux-gnu")
 
 # Create a neuronek.run self-extracting archive which will install
 # oneself inside home directory of linux operating system, this is
@@ -28,8 +42,9 @@ build-target target:
 # CLI applications without usage of package-manager.
 #
 # Supported operating systems: Linux, Darwin?
-[private]
-@package-makeself target:
+[linux]
+@package-sea target="x86_64-unknown-linux-musl":
+    cargo zigbuild --bin=neuronek --target={{target}} --release
     mkdir -p /tmp/npack && \
     mkdir -p dist && \
     cp target/{{target}}/release/neuronek /tmp/npack && \
@@ -37,14 +52,26 @@ build-target target:
     chmod +x /tmp/npack/install && \
     makeself -q --tar-quietly /tmp/npack dist/neuronek.run "Neuronek CLI" ./install
 
+# Create Debian archive
+[linux]
+@package-deb target="x86_64-unknown-linux-gnu":
+    cargo bundle --release --target {{target}}
+    cp target/{{target}}/release/bundle/deb/neuronek_*.deb dist/neuronek.deb
+
+[linux]
+@package-tarball target="x86_64-unknown-linux-musl":
+    cargo dist build
+
+
 package-appimage target:
     @echo TODO
 
 package-flatpak target:
     @echo TODO
 
-package-msi target:
-    @echo TODO
+package-msi target="x86_64-pc-windows-gnu":
+    vpk pack -u xyz.neuronek.cli -v 0.0.1-dev.0 -p /target/{{target}}/release -e neuronek.exe
+#    cargo wix -p neuronek -t {{target}} --nocapture --no-build
 
 package-dmg target:
     @echo TODO
